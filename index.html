@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14213d">
+<title>Lyric Lingo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f5f9;--fg:#14213d;--mut:#5c677d;--card:#fff;--line:#d9dfeb;--hl:#ffe066;--acc:#2b59c3;--accfg:#fff;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1626;--fg:#e8ecf5;--mut:#8f9bb3;--card:#18213a;--line:#2a3555;--hl:#5a4a05;--acc:#7aa2ff;--accfg:#0f1626}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+main{max-width:640px;margin:0 auto;padding:0 14px 80px}
+h1{font:600 26px/1.1 Newsreader,Georgia,serif;margin:18px 0 12px}
+.row{display:flex;gap:8px}
+input,select,textarea,button{font:inherit;color:inherit}
+input[type=text],input[type=search],input[type=email],select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+button{border:0;border-radius:8px;padding:11px 16px;background:var(--acc);color:var(--accfg);font-weight:600;cursor:pointer;white-space:nowrap}
+button.ghost{background:transparent;color:var(--acc);border:1px solid var(--line)}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+#results{margin:10px 0;display:grid;gap:6px}
+.res{display:flex;justify-content:space-between;gap:10px;text-align:left;background:var(--card);color:var(--fg);border:1px solid var(--line);font-weight:400;width:100%}
+.res small{color:var(--mut)}
+.tag{font-size:12px;color:var(--acc);font-weight:600}
+#status{color:var(--mut);font-size:14px;min-height:20px;margin:6px 0}
+#song{display:none}
+#song h2{font:600 22px/1.2 Newsreader,Georgia,serif;margin:14px 0 2px}
+#song .by{color:var(--mut);margin:0 0 10px}
+.links{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.links a{color:var(--acc);font-weight:600;font-size:14px}
+#ytwrap{display:none;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:8px 0}
+#ytbox{position:relative;width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#000}
+#ytbox iframe{position:absolute;inset:0;width:100%;height:100%}
+details{margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+summary{cursor:pointer;font-weight:600}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.opts label{font-size:14px;color:var(--mut);display:block}
+.chk{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0;font-size:15px}
+.chk label{display:flex;align-items:center;gap:6px}
+#lyrics{margin-top:8px}
+.line{padding:10px 12px;border-radius:10px;margin:2px 0;cursor:pointer;scroll-margin-top:45vw;transition:background .2s}
+.line .o{font:400 21px/1.35 Newsreader,Georgia,"Noto Serif CJK SC","Noto Serif JP",serif}
+.line .r{color:var(--acc);font-size:15px;margin-top:2px}
+.line .t{color:var(--mut);font-size:15px;margin-top:2px;font-style:italic}
+.line.on{background:var(--hl)}
+.line.on .t,.line.on .r{color:inherit}
+.line.past .o{opacity:.55}
+.hide-r .r,.hide-t .t{display:none}
+.blank{height:10px}
+</style>
+</head>
+<body>
+<main>
+<h1>Lyric Lingo</h1>
+<div class="row">
+  <input id="q" type="search" placeholder="Artist and song title" aria-label="Search song" enterkeyhint="search">
+  <button id="go">Search</button>
+</div>
+<div id="status" role="status"></div>
+<div id="results"></div>
+
+<section id="song">
+  <h2 id="sTitle"></h2>
+  <p class="by" id="sBy"></p>
+  <div class="links">
+    <a id="lnkYT" target="_blank" rel="noopener">Find on YouTube</a>
+    <a id="lnkSP" target="_blank" rel="noopener">Find on Spotify</a>
+  </div>
+  <div class="row">
+    <input id="yturl" type="text" placeholder="Paste YouTube link here" aria-label="YouTube link" inputmode="url">
+    <button id="ytgo">Play</button>
+  </div>
+  <div id="ytwrap"><div id="ytbox"><div id="yt"></div></div></div>
+
+  <details>
+    <summary>Settings</summary>
+    <div class="opts">
+      <div><label for="slang">Song language</label>
+        <select id="slang"><option value="auto">Auto-detect</option><option value="en">English</option><option value="it">Italian</option><option value="zh">Chinese</option><option value="ja">Japanese</option></select></div>
+      <div><label for="tlang">Translate to</label>
+        <select id="tlang"><option value="en">English</option><option value="ru">Russian</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select></div>
+    </div>
+    <div class="chk">
+      <label><input type="checkbox" id="showR" checked> Pinyin / romaji</label>
+      <label><input type="checkbox" id="showT" checked> Translation</label>
+      <label><input type="checkbox" id="auto" checked> Auto-scroll</label>
+    </div>
+    <label for="off" style="font-size:14px;color:var(--mut)">Sync offset: <b id="offv">0.0</b> s (raise it if lyrics appear late)</label>
+    <input id="off" type="range" min="-5" max="5" step="0.1" value="0" style="width:100%">
+    <label for="mail" style="font-size:14px;color:var(--mut);display:block;margin-top:8px">Email for a higher free translation limit (optional)</label>
+    <input id="mail" type="email" placeholder="you@example.com">
+  </details>
+
+  <details>
+    <summary>No lyrics found? Paste your own</summary>
+    <textarea id="paste" rows="5" placeholder="Paste .lrc text with timestamps, or plain lyrics"></textarea>
+    <p><button class="ghost" id="usePaste">Use these lyrics</button></p>
+  </details>
+
+  <div id="lyrics"></div>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.19.6/dist/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/kuroshiro@1.2.0/dist/kuroshiro.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+let lines = [], songKey = '', player = null, active = -1, kuro = null, kuroP = null, runId = 0;
+const MM = {zh:'zh-CN', ja:'ja', it:'it', en:'en', ru:'ru', es:'es', fr:'fr', de:'de'};
+
+function say(t){ $('#status').textContent = t || ''; }
+function mmss(s){ s = Math.round(s || 0); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+function decode(s){ return new DOMParser().parseFromString(s || '', 'text/html').documentElement.textContent; }
+
+/* ---------- Lyrics search (LRCLIB) ---------- */
+async function search(){
+  const q = $('#q').value.trim(); if(!q) return;
+  say('Searching…'); $('#results').innerHTML = '';
+  try {
+    const r = await fetch('https://lrclib.net/api/search?q=' + encodeURIComponent(q));
+    const data = await r.json();
+    const hits = data.filter(d => d.syncedLyrics || d.plainLyrics).slice(0, 12);
+    if(!hits.length){ say('No lyrics found. Try fewer words, or paste lyrics below once you open a song.'); return; }
+    say('Pick a version. Songs tagged "synced" work like karaoke.');
+    hits.forEach(h => {
+      const b = document.createElement('button'); b.className = 'res';
+      const l = document.createElement('span'); l.textContent = h.trackName;
+      const sm = document.createElement('small'); sm.textContent = ' ' + h.artistName + ' · ' + mmss(h.duration);
+      l.appendChild(sm);
+      const t = document.createElement('span'); t.className = 'tag'; t.textContent = h.syncedLyrics ? 'synced' : 'text only';
+      b.append(l, t);
+      b.onclick = () => openSong(h);
+      $('#results').appendChild(b);
+    });
+  } catch(e){ say('Search failed. Check your connection and try again.'); }
+}
+
+function parseLRC(t){
+  const out = [];
+  for(const raw of t.split('\n')){
+    const m = [...raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)];
+    const text = raw.replace(/\[[^\]]*\]/g, '').trim();
+    if(!m.length || !text) continue;
+    m.forEach(x => out.push({t: +x[1]*60 + +x[2], text}));
+  }
+  return out.sort((a,b) => a.t - b.t);
+}
+function parsePlain(t){ return t.split('\n').map(s => s.trim()).filter(Boolean).map(text => ({t:null, text})); }
+
+function openSong(h){
+  $('#results').innerHTML = '';
+  $('#sTitle').textContent = h.trackName; $('#sBy').textContent = h.artistName;
+  const k = encodeURIComponent(h.artistName + ' ' + h.trackName);
+  $('#lnkYT').href = 'https://www.youtube.com/results?search_query=' + k + '+lyrics';
+  $('#lnkSP').href = 'https://open.spotify.com/search/' + k;
+  $('#song').style.display = 'block';
+  songKey = 'lrclib:' + h.id;
+  loadLines(h.syncedLyrics ? parseLRC(h.syncedLyrics) : parsePlain(h.plainLyrics));
+  say(h.syncedLyrics ? 'Paste a YouTube link above and press Play.' : 'No timing for this song, so lyrics will not scroll with the music.');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+/* ---------- Language handling ---------- */
+function detectLang(){
+  const all = lines.map(l => l.text).join('');
+  if(/[\u3040-\u30ff]/.test(all)) return 'ja';
+  if((all.match(/[\u4e00-\u9fff]/g) || []).length > all.length * .2) return 'zh';
+  return 'en';
+}
+function songLang(){ const v = $('#slang').value; return v === 'auto' ? detectLang() : v; }
+
+async function getKuro(){
+  if(kuro) return kuro;
+  if(!kuroP) kuroP = (async () => {
+    const K = window.Kuroshiro.default || window.Kuroshiro;
+    const A = window.KuromojiAnalyzer.default || window.KuromojiAnalyzer;
+    const k = new K();
+    await k.init(new A({dictPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/'}));
+    kuro = k; return k;
+  })();
+  return kuroP;
+}
+async function romanize(text, lang){
+  if(lang === 'zh') return window.pinyinPro.pinyin(text, {toneType: 'symbol'});
+  if(lang === 'ja'){ const k = await getKuro(); return k.convert(text, {to: 'romaji', romajiSystem: 'hepburn', mode: 'spaced'}); }
+  return '';
+}
+async function translate(text, src, tgt){
+  const mail = $('#mail').value.trim();
+  const u = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + MM[src] + '|' + MM[tgt] + (mail ? '&de=' + encodeURIComponent(mail) : '');
+  const j = await (await fetch(u)).json();
+  if(+j.responseStatus === 200) return decode(j.responseData.translatedText);
+  const e = new Error(j.responseDetails || 'failed'); e.quota = +j.responseStatus === 429; throw e;
+}
+
+/* ---------- Render + enrich ---------- */
+function loadLines(arr){ lines = arr; active = -1; render(); enrich(); }
+
+function render(){
+  const box = $('#lyrics'); box.innerHTML = '';
+  lines.forEach((l, i) => {
+    const d = document.createElement('div'); d.className = 'line'; d.id = 'L' + i;
+    ['o','r','t'].forEach(c => { const e = document.createElement('div'); e.className = c; d.appendChild(e); });
+    d.firstChild.textContent = l.text;
+    d.onclick = () => { if(player && player.seekTo && l.t != null) player.seekTo(Math.max(0, l.t - off()), true); };
+    box.appendChild(d);
+  });
+  applyToggles();
+}
+function applyToggles(){
+  const b = $('#lyrics');
+  b.classList.toggle('hide-r', !$('#showR').checked);
+  b.classList.toggle('hide-t', !$('#showT').checked);
+}
+
+async function enrich(){
+  const id = ++runId, src = songLang(), tgt = $('#tlang').value;
+  const rKey = 'r:' + songKey + ':' + src, tKey = 't:' + songKey + ':' + src + ':' + tgt;
+  const rCache = store.get(rKey) || {}, tCache = store.get(tKey) || {};
+  const el = (i, c) => document.querySelector('#L' + i + ' .' + c);
+
+  // Romanization
+  if(src === 'zh' || src === 'ja'){
+    if(src === 'ja') say('Loading Japanese dictionary (first time only)…');
+    for(let i = 0; i < lines.length; i++){
+      if(id !== runId) return;
+      try {
+        if(rCache[i] == null) rCache[i] = await romanize(lines[i].text, src);
+        el(i,'r').textContent = rCache[i];
+      } catch(e){ say('Romanization unavailable for this line or language.'); }
+    }
+    store.set(rKey, rCache);
+  }
+
+  // Translation (skipped when song language equals target)
+  if(src === tgt){ say(''); return; }
+  say('Translating…');
+  let quota = false, done = 0;
+  const queue = lines.map((l, i) => i);
+  async function worker(){
+    while(queue.length && !quota){
+      const i = queue.shift();
+      if(id !== runId) return;
+      try {
+        if(tCache[i] == null) tCache[i] = await translate(lines[i].text, src, tgt);
+        el(i,'t').textContent = tCache[i];
+        done++;
+      } catch(e){ if(e.quota) quota = true; }
+    }
+  }
+  await Promise.all([worker(), worker(), worker()]);
+  if(id !== runId) return;
+  store.set(tKey, tCache);
+  say(quota ? 'Daily free translation limit reached. Add your email in Settings for a higher limit, or try tomorrow.' : '');
+}
+
+/* ---------- YouTube player + sync ---------- */
+function ytId(s){ const m = s.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/); return m ? m[1] : null; }
+let apiP = null;
+function loadYT(){
+  if(window.YT && window.YT.Player) return Promise.resolve();
+  if(!apiP) apiP = new Promise(res => {
+    window.onYouTubeIframeAPIReady = res;
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+  });
+  return apiP;
+}
+async function playVideo(){
+  const id = ytId($('#yturl').value.trim());
+  if(!id){ say('That does not look like a YouTube link.'); return; }
+  say(''); $('#ytwrap').style.display = 'block';
+  await loadYT();
+  if(player && player.loadVideoById){ player.loadVideoById(id); return; }
+  player = new YT.Player('yt', {videoId: id, playerVars: {playsinline: 1, rel: 0}, events: {onReady: e => e.target.playVideo()}});
+}
+function off(){ return parseFloat($('#off').value) || 0; }
+
+setInterval(() => {
+  if(!player || !player.getCurrentTime || !lines.length || lines[0].t == null) return;
+  if(player.getPlayerState && player.getPlayerState() !== 1) return;
+  const now = player.getCurrentTime() + off();
+  let idx = -1;
+  for(let i = 0; i < lines.length; i++){ if(lines[i].t <= now) idx = i; else break; }
+  if(idx === active) return;
+  active = idx;
+  lines.forEach((_, i) => { const e = document.getElementById('L' + i); e.classList.toggle('on', i === idx); e.classList.toggle('past', i < idx); });
+  if(idx >= 0 && $('#auto').checked) document.getElementById('L' + idx).scrollIntoView({behavior: 'smooth', block: 'start'});
+}, 200);
+
+/* ---------- Wiring ---------- */
+$('#go').onclick = search;
+$('#q').addEventListener('keydown', e => { if(e.key === 'Enter') search(); });
+$('#ytgo').onclick = playVideo;
+$('#yturl').addEventListener('keydown', e => { if(e.key === 'Enter') playVideo(); });
+$('#showR').onchange = $('#showT').onchange = applyToggles;
+$('#slang').onchange = $('#tlang').onchange = () => { if(lines.length){ render(); enrich(); } };
+$('#off').oninput = () => { $('#offv').textContent = off().toFixed(1); };
+$('#usePaste').onclick = () => {
+  const t = $('#paste').value.trim(); if(!t) return;
+  const synced = parseLRC(t);
+  songKey = 'manual:' + t.length + ':' + t.slice(0, 20);
+  if(!$('#sTitle').textContent) $('#sTitle').textContent = 'Pasted lyrics';
+  $('#song').style.display = 'block';
+  loadLines(synced.length > 3 ? synced : parsePlain(t));
+};
+</script>
+</body>
+</html>
