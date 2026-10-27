@@ -50,7 +50,9 @@ summary{cursor:pointer;font-weight:600}
 .line.on .t,.line.on .r{color:inherit}
 .line.past .o{opacity:.55}
 .hide-r .r,.hide-t .t{display:none}
-.blank{height:10px}
+.line .o{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.cp{background:transparent;color:var(--mut);border:1px solid var(--line);padding:3px 9px;font-size:13px;flex:none}
+.note{color:var(--mut);font-size:14px;margin:4px 0 8px}
 </style>
 </head>
 <body>
@@ -66,6 +68,7 @@ summary{cursor:pointer;font-weight:600}
 <section id="song">
   <h2 id="sTitle"></h2>
   <p class="by" id="sBy"></p>
+  <p class="note" id="sNote"></p>
   <div class="links">
     <a id="lnkYT" target="_blank" rel="noopener">Find on YouTube</a>
     <a id="lnkSP" target="_blank" rel="noopener">Find on Spotify</a>
@@ -101,6 +104,14 @@ summary{cursor:pointer;font-weight:600}
     <p><button class="ghost" id="usePaste">Use these lyrics</button></p>
   </details>
 
+  <details>
+    <summary>Better translation with a free AI chat</summary>
+    <p class="note">1. Copy the prompt. 2. Paste it into any free AI chat (Claude, ChatGPT, Gemini). 3. Paste the answer back here.</p>
+    <button class="ghost" id="aiCopy">Copy prompt with lyrics</button>
+    <textarea id="aiin" rows="5" style="margin-top:8px" placeholder="Paste the AI answer here (one line per lyric, like: 1 | translation)"></textarea>
+    <p><button class="ghost" id="aiApply">Apply answer</button></p>
+  </details>
+
   <div id="lyrics"></div>
 </section>
 </main>
@@ -108,6 +119,7 @@ summary{cursor:pointer;font-weight:600}
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.19.6/dist/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/kuroshiro@1.2.0/dist/kuroshiro.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/umd/wanakana.min.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const store = {
@@ -117,7 +129,17 @@ const store = {
 let lines = [], songKey = '', player = null, active = -1, kuro = null, kuroP = null, runId = 0;
 const MM = {zh:'zh-CN', ja:'ja', it:'it', en:'en', ru:'ru', es:'es', fr:'fr', de:'de'};
 
-function say(t){ $('#status').textContent = t || ''; }
+const msgs = {g:'', r:'', t:''};
+function showMsg(){ $('#status').textContent = Object.values(msgs).filter(Boolean).join(' '); }
+function say(t){ msgs.g = t || ''; showMsg(); }
+function setMsg(k, t){ msgs[k] = t || ''; showMsg(); }
+async function copyText(t){
+  try { await navigator.clipboard.writeText(t); return true; } catch(e){}
+  const a = document.createElement('textarea'); a.value = t; a.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(a); a.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch(e){}
+  a.remove(); return ok;
+}
 function mmss(s){ s = Math.round(s || 0); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
 function decode(s){ return new DOMParser().parseFromString(s || '', 'text/html').documentElement.textContent; }
 
@@ -168,6 +190,7 @@ function openSong(h){
   $('#lnkYT').href = 'https://www.youtube.com/results?search_query=' + k + '+lyrics';
   $('#lnkSP').href = 'https://open.spotify.com/search/' + k;
   $('#song').style.display = 'block';
+  $('#sNote').textContent = h.duration ? 'Lyrics are timed for a version about ' + mmss(h.duration) + ' long. Pick a YouTube video of similar length.' : '';
   songKey = 'lrclib:' + h.id;
   loadLines(h.syncedLyrics ? parseLRC(h.syncedLyrics) : parsePlain(h.plainLyrics));
   say(h.syncedLyrics ? 'Paste a YouTube link above and press Play.' : 'No timing for this song, so lyrics will not scroll with the music.');
@@ -194,16 +217,36 @@ async function getKuro(){
   })();
   return kuroP;
 }
+let kuroFail = false;
 async function romanize(text, lang){
   if(lang === 'zh') return window.pinyinPro.pinyin(text, {toneType: 'symbol'});
-  if(lang === 'ja'){ const k = await getKuro(); return k.convert(text, {to: 'romaji', romajiSystem: 'hepburn', mode: 'spaced'}); }
+  if(lang === 'ja'){
+    let k = null;
+    if(!kuroFail){
+      try {
+        k = await Promise.race([getKuro(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 45000))]);
+        setMsg('r', '');
+      } catch(e){
+        kuroFail = true;
+        setMsg('r', 'The Japanese dictionary did not load, so only kana is converted for now. For full romaji use the AI option below.');
+      }
+    }
+    if(k) return k.convert(text, {to: 'romaji', romajiSystem: 'hepburn', mode: 'spaced'});
+    return window.wanakana ? window.wanakana.toRomaji(text) : '';
+  }
   return '';
 }
 async function translate(text, src, tgt){
   const mail = $('#mail').value.trim();
   const u = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + MM[src] + '|' + MM[tgt] + (mail ? '&de=' + encodeURIComponent(mail) : '');
   const j = await (await fetch(u)).json();
-  if(+j.responseStatus === 200) return decode(j.responseData.translatedText);
+  if(+j.responseStatus === 200){
+    const ms = Array.isArray(j.matches) ? j.matches.filter(m => m.translation) : [];
+    const best = ms.sort((x, y) => y.match - x.match)[0];
+    const txt = decode(best ? best.translation : j.responseData.translatedText);
+    const score = best ? +best.match : +j.responseData.match;
+    return (score < 0.7 ? '≈ ' : '') + txt;
+  }
   const e = new Error(j.responseDetails || 'failed'); e.quota = +j.responseStatus === 429; throw e;
 }
 
@@ -215,7 +258,10 @@ function render(){
   lines.forEach((l, i) => {
     const d = document.createElement('div'); d.className = 'line'; d.id = 'L' + i;
     ['o','r','t'].forEach(c => { const e = document.createElement('div'); e.className = c; d.appendChild(e); });
-    d.firstChild.textContent = l.text;
+    const tx = document.createElement('span'); tx.textContent = l.text;
+    const cb = document.createElement('button'); cb.className = 'cp'; cb.textContent = 'Copy'; cb.setAttribute('aria-label', 'Copy this line');
+    cb.onclick = async ev => { ev.stopPropagation(); const ok = await copyText(l.text); cb.textContent = ok ? 'Copied' : 'Failed'; setTimeout(() => cb.textContent = 'Copy', 1200); };
+    d.firstChild.append(tx, cb);
     d.onclick = () => { if(player && player.seekTo && l.t != null) player.seekTo(Math.max(0, l.t - off()), true); };
     box.appendChild(d);
   });
@@ -232,40 +278,44 @@ async function enrich(){
   const rKey = 'r:' + songKey + ':' + src, tKey = 't:' + songKey + ':' + src + ':' + tgt;
   const rCache = store.get(rKey) || {}, tCache = store.get(tKey) || {};
   const el = (i, c) => document.querySelector('#L' + i + ' .' + c);
+  setMsg('r', ''); setMsg('t', '');
 
-  // Romanization
-  if(src === 'zh' || src === 'ja'){
-    if(src === 'ja') say('Loading Japanese dictionary (first time only)…');
+  async function doRoman(){
+    if(src !== 'zh' && src !== 'ja') return;
+    if(src === 'ja' && lines.some((_, i) => rCache[i] == null)) setMsg('r', 'Loading Japanese dictionary (about 17 MB, first time only)…');
     for(let i = 0; i < lines.length; i++){
       if(id !== runId) return;
       try {
-        if(rCache[i] == null) rCache[i] = await romanize(lines[i].text, src);
-        el(i,'r').textContent = rCache[i];
-      } catch(e){ say('Romanization unavailable for this line or language.'); }
+        let v = rCache[i];
+        if(v == null){ v = await romanize(lines[i].text, src); if(!(src === 'ja' && kuroFail)) rCache[i] = v; }
+        el(i, 'r').textContent = v;
+      } catch(e){}
     }
-    store.set(rKey, rCache);
+    if(id === runId){ store.set(rKey, rCache); if(!kuroFail) setMsg('r', ''); }
   }
 
-  // Translation (skipped when song language equals target)
-  if(src === tgt){ say(''); return; }
-  say('Translating…');
-  let quota = false, done = 0;
-  const queue = lines.map((l, i) => i);
-  async function worker(){
-    while(queue.length && !quota){
-      const i = queue.shift();
-      if(id !== runId) return;
-      try {
-        if(tCache[i] == null) tCache[i] = await translate(lines[i].text, src, tgt);
-        el(i,'t').textContent = tCache[i];
-        done++;
-      } catch(e){ if(e.quota) quota = true; }
+  async function doTrans(){
+    if(src === tgt) return;
+    setMsg('t', 'Translating…');
+    let quota = false, failed = 0;
+    const queue = lines.map((_, i) => i);
+    async function worker(){
+      while(queue.length && !quota){
+        const i = queue.shift();
+        if(id !== runId) return;
+        try {
+          if(tCache[i] == null) tCache[i] = await translate(lines[i].text, src, tgt);
+          el(i, 't').textContent = tCache[i];
+        } catch(e){ if(e.quota) quota = true; else failed++; }
+      }
     }
+    await Promise.all([worker(), worker(), worker()]);
+    if(id !== runId) return;
+    store.set(tKey, tCache);
+    setMsg('t', quota ? 'Daily free translation limit reached. Add your email in Settings for a higher limit, or use the AI option below.' : failed ? 'Some lines could not be translated. The AI option below can fill them in.' : '');
   }
-  await Promise.all([worker(), worker(), worker()]);
-  if(id !== runId) return;
-  store.set(tKey, tCache);
-  say(quota ? 'Daily free translation limit reached. Add your email in Settings for a higher limit, or try tomorrow.' : '');
+
+  await Promise.all([doRoman(), doTrans()]);
 }
 
 /* ---------- YouTube player + sync ---------- */
@@ -314,9 +364,34 @@ $('#usePaste').onclick = () => {
   const synced = parseLRC(t);
   songKey = 'manual:' + t.length + ':' + t.slice(0, 20);
   if(!$('#sTitle').textContent) $('#sTitle').textContent = 'Pasted lyrics';
+  $('#sNote').textContent = '';
   $('#song').style.display = 'block';
   loadLines(synced.length > 3 ? synced : parsePlain(t));
 };
+
+/* ---------- Free AI-chat translation ---------- */
+function aiPrompt(){
+  const src = songLang(), names = {en: 'English', it: 'Italian', zh: 'Chinese', ja: 'Japanese'};
+  const tgt = $('#tlang').selectedOptions[0].textContent;
+  const rom = src === 'zh' ? 'pinyin with tone marks' : src === 'ja' ? 'romaji (Hepburn, words separated by spaces)' : '';
+  return `I am learning ${names[src]} from song lyrics. For each numbered line below, reply with exactly one line in this format:\nnumber | ${rom ? rom + ' | ' : ''}natural ${tgt} translation\nTranslate the meaning in the context of the whole song, not word by word. Use plain text (no table, no code block), keep every number, and add nothing else.\n\n` + lines.map((l, i) => (i + 1) + ' | ' + l.text).join('\n');
+}
+function applyAI(){
+  const src = songLang(), tgt = $('#tlang').value, hasR = src === 'zh' || src === 'ja', rC = {}, tC = {};
+  let n = 0;
+  $('#aiin').value.split('\n').forEach(row => {
+    const p = row.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(x => x.trim()), i = parseInt(p[0], 10) - 1;
+    if(!(i >= 0 && i < lines.length) || p.length < 2) return;
+    if(hasR && p.length >= 3){ rC[i] = p[1]; tC[i] = p.slice(2).join(' | '); } else tC[i] = p.slice(1).join(' | ');
+    n++;
+  });
+  if(!n){ say('Could not read the answer. Each line should look like: 1 | translation'); return; }
+  if(Object.keys(rC).length) store.set('r:' + songKey + ':' + src, rC);
+  store.set('t:' + songKey + ':' + src + ':' + tgt, tC);
+  render(); enrich(); say('Applied ' + n + ' lines.');
+}
+$('#aiCopy').onclick = async () => { if(!lines.length) return; say((await copyText(aiPrompt())) ? 'Prompt copied. Paste it into your AI chat.' : 'Copy failed. Try again.'); };
+$('#aiApply').onclick = applyAI;
 </script>
 </body>
 </html>
