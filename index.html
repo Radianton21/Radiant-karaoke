@@ -41,7 +41,7 @@ summary{cursor:pointer;font-weight:600}
 .opts label{font-size:14px;color:var(--mut);display:block}
 .chk{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0;font-size:15px}
 .chk label{display:flex;align-items:center;gap:6px}
-#lyrics{margin-top:8px}
+#lyrics{margin-top:8px;padding-bottom:45vh}
 .line{padding:10px 12px;border-radius:10px;margin:2px 0;cursor:pointer;scroll-margin-top:45vw;transition:background .2s}
 .line .o{font:400 21px/1.35 Newsreader,Georgia,"Noto Serif CJK SC","Noto Serif JP",serif}
 .line .r{color:var(--acc);font-size:15px;margin-top:2px}
@@ -54,12 +54,13 @@ summary{cursor:pointer;font-weight:600}
 .cp{background:transparent;color:var(--mut);border:1px solid var(--line);padding:5px 7px;line-height:0;flex:none}
 #ver{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);right:8px;z-index:20;font-size:12px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:1px 7px}
 .cp svg{display:block}
+.r:empty,.t:empty{display:none}
 .note{color:var(--mut);font-size:14px;margin:4px 0 8px}
 </style>
 </head>
 <body>
 <main>
-<span id="ver" title="App version">v6</span>
+<span id="ver" title="App version">v9</span>
 <h1>Lyric Lingo</h1>
 <div class="row">
   <input id="q" type="search" placeholder="Artist and song title" aria-label="Search song" enterkeyhint="search">
@@ -86,7 +87,7 @@ summary{cursor:pointer;font-weight:600}
     <summary>Settings</summary>
     <div class="opts">
       <div><label for="slang">Song language</label>
-        <select id="slang"><option value="auto">Auto-detect</option><option value="en">English</option><option value="it">Italian</option><option value="zh">Chinese</option><option value="ja">Japanese</option></select></div>
+        <select id="slang"><option value="auto">Auto-detect</option><option value="en">English</option><option value="it">Italian</option><option value="zh">Chinese</option><option value="ja">Japanese</option><option value="ko">Korean</option><option value="he">Hebrew</option></select></div>
       <div><label for="tlang">Translate to</label>
         <select id="tlang"><option value="en">English</option><option value="ru">Russian</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select></div>
     </div>
@@ -97,6 +98,7 @@ summary{cursor:pointer;font-weight:600}
     </div>
     <label for="off" style="font-size:14px;color:var(--mut)">Sync offset: <b id="offv">0.0</b> s (raise it if lyrics appear late)</label>
     <input id="off" type="range" min="-5" max="5" step="0.1" value="0" style="width:100%">
+    <p><button class="ghost" id="offReset" type="button">Reset offset to 0.0 s</button></p>
     <label for="mail" style="font-size:14px;color:var(--mut);display:block;margin-top:8px">Email for a higher free translation limit (optional)</label>
     <input id="mail" type="email" placeholder="you@example.com">
   </details>
@@ -134,15 +136,22 @@ try {
   });
 } catch(e){ postMessage({fail: 'scripts: ' + (e.message || e)}); }
 function conv(text){
-  const out = [];
+  const out = []; let gem = false;
   tk.tokenize(text).forEach(t => {
     const s = t.surface_form;
-    let r;
+    let r, tsu = false;
     if(t.pos === '助詞' && s === 'は') r = 'wa';
     else if(t.pos === '助詞' && s === 'へ') r = 'e';
     else if(t.pos === '助詞' && s === 'を') r = 'o';
-    else r = wanakana.toRomaji(t.reading && t.reading !== '*' ? t.reading : s);
-    if(out.length && (t.pos === '助動詞' || t.pos_detail_1 === '接尾')) out[out.length - 1] += r; else out.push(r);
+    else {
+      let rd = t.reading && t.reading !== '*' ? t.reading : s;
+      if(rd.length > 1 && /[ッっ]$/.test(rd)){ tsu = true; rd = rd.slice(0, -1); }
+      r = wanakana.toRomaji(rd);
+    }
+    if(gem && out.length) out[out.length - 1] += (r.startsWith('ch') ? 't' : /^[bcdfghjklmnpqrstvwxyz]/.test(r) ? r[0] : '') + r;
+    else if(out.length && (t.pos === '助動詞' || t.pos_detail_1 === '接尾')) out[out.length - 1] += r;
+    else out.push(r);
+    gem = tsu;
   });
   return out.join(' ').replace(/ ([,.!?;:])/g, '$1');
 }
@@ -155,8 +164,8 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 };
-let lines = [], songKey = '', player = null, active = -1, runId = 0;
-const MM = {zh:'zh-CN', ja:'ja', it:'it', en:'en', ru:'ru', es:'es', fr:'fr', de:'de'};
+let lines = [], songKey = '', player = null, active = -1, runId = 0, lastHits = [];
+const MM = {zh:'zh-CN', ja:'ja', ko:'ko', he:'he', it:'it', en:'en', ru:'ru', es:'es', fr:'fr', de:'de'};
 
 const SV = 'viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
 const IC_COPY = '<svg ' + SV + '><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
@@ -184,7 +193,8 @@ async function search(){
     if(!r.ok) throw new Error('Lyrics service replied with status ' + r.status);
     const data = await r.json();
     if(!Array.isArray(data)) throw new Error('Unexpected reply from lyrics service');
-    const hits = data.filter(d => d.syncedLyrics || d.plainLyrics).slice(0, 12);
+    lastHits = data.filter(d => d.syncedLyrics || d.plainLyrics);
+    const hits = lastHits.slice(0, 12);
     if(!hits.length){ say('No lyrics found. Try fewer words, or paste lyrics below once you open a song.'); return; }
     say('Pick a version. Songs tagged "synced" work like karaoke.');
     hits.forEach(h => {
@@ -224,7 +234,8 @@ function openSong(h){
   $('#song').style.display = 'block';
   $('#sNote').textContent = h.duration ? 'Lyrics are timed for a version about ' + mmss(h.duration) + ' long. Pick a YouTube video of similar length.' : '';
   songKey = 'lrclib:' + h.id;
-  loadLines(h.syncedLyrics ? parseLRC(h.syncedLyrics) : parsePlain(h.plainLyrics));
+  const arr = h.syncedLyrics ? parseLRC(h.syncedLyrics) : parsePlain(h.plainLyrics);
+  altReadings(arr, h); loadLines(arr);
   say(h.syncedLyrics ? 'Paste a YouTube link below and press Play.' : 'No timing for this song, so lyrics will not scroll with the music.');
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
@@ -234,6 +245,8 @@ function detectLang(){
   const all = lines.map(l => l.text).join('');
   if(/[\u3040-\u30ff]/.test(all)) return 'ja';
   if((all.match(/[\u4e00-\u9fff]/g) || []).length > all.length * .2) return 'zh';
+  if((all.match(/[\u0590-\u05ff]/g) || []).length > all.length * .2) return 'he';
+  if((all.match(/[\uac00-\ud7af]/g) || []).length > all.length * .3) return 'ko';
   const w = all.toLowerCase().match(/[a-zàèéìòù']+/g) || [];
   const IT = new Set(['che','non','di','il','per','con','sei','mi','ti','ci','una','un','è','sono','più','come','ma','se','lo','le','nel','del','io','tu','noi','così','anche','quando','sempre','e','vola','amore','cuore']);
   const EN = new Set(['the','you','and','to','is','it','of','me','my','in','that','on','for','your','be','we','are','but','this','with','love','all','not','just',"don't",'i']);
@@ -275,14 +288,105 @@ function jaConvert(text){
   if(jaState === 'failed') return Promise.resolve(null);
   return new Promise(res => { const id = ++jaId; jaPending[id] = res; jaW.postMessage({id, text}); });
 }
-async function romanize(text, lang){
-  if(lang === 'zh') return window.pinyinPro.pinyin(text, {toneType: 'symbol'});
-  if(lang === 'ja'){
-    const r = await jaConvert(text);
-    if(r != null) return r;
-    return window.wanakana ? window.wanakana.toRomaji(text) : '';
+/* PURE-START */
+const HG = '[\\uac00-\\ud7af\\u1100-\\u11ff\\u3130-\\u318f]+';
+const KO_I = ['g','kk','n','d','tt','r','m','b','pp','s','ss','','j','jj','ch','k','t','p','h'];
+const KO_V = ['a','ae','ya','yae','eo','e','yeo','ye','o','wa','wae','oe','yo','u','wo','we','wi','yu','eu','ui','i'];
+const KO_F = ['','k','k','k','n','n','n','t','l','k','m','l','l','l','p','l','m','p','p','t','t','ng','t','t','k','t','p','t'];
+const KO_L = {1:'g',2:'kk',4:'n',7:'d',8:'r',16:'m',17:'b',19:'s',20:'ss',22:'j',23:'ch',24:'k',25:'t',26:'p'};
+function koRoman(t){
+  const cs = [...t]; let out = '', carry = '';
+  cs.forEach((ch, n) => {
+    const c = ch.charCodeAt(0) - 0xAC00;
+    if(c < 0 || c > 11171){ out += ch; carry = ''; return; }
+    const f = c % 28, v = Math.floor(c / 28) % 21, i = Math.floor(c / 588);
+    const nx = cs[n + 1] ? cs[n + 1].charCodeAt(0) - 0xAC00 : -1;
+    let fin = KO_F[f], nc = '';
+    if(KO_L[f] && nx >= 0 && nx <= 11171 && Math.floor(nx / 588) === 11){ fin = ''; nc = KO_L[f]; }
+    out += (carry || KO_I[i]) + KO_V[v] + fin; carry = nc;
+  });
+  return out;
+}
+const HB = {'א':'','ב':'v','ג':'g','ד':'d','ה':'h','ו':'v','ז':'z','ח':'ch','ט':'t','י':'y','כ':'kh','ך':'kh','ל':'l','מ':'m','ם':'m','נ':'n','ן':'n','ס':'s','ע':'','פ':'f','ף':'f','צ':'ts','ץ':'ts','ק':'k','ר':'r','ש':'sh','ת':'t'};
+const HV = {'\u05B7':'a','\u05B8':'a','\u05B6':'e','\u05B5':'e','\u05B4':'i','\u05B9':'o','\u05BA':'o','\u05BB':'u','\u05B1':'e','\u05B2':'a','\u05B3':'o'};
+function heWord(w){
+  const cl = w.match(/[\u05d0-\u05ea][\u05b0-\u05bd\u05bf-\u05c7]*/g) || [];
+  const vocal = /[\u05b0-\u05bb\u05c7]/.test(w);
+  let out = '', pv = '';
+  cl.forEach((c, i) => {
+    const L = c[0], m = c.slice(1), first = i === 0, last = i === cl.length - 1, dag = m.includes('\u05bc');
+    let v = ''; for(const ch of m){ if(HV[ch]){ v = HV[ch]; break; } }
+    if(vocal){
+      if(L === 'ו' && (v === 'o' || (dag && !v))){ out += v || 'u'; pv = ''; return; }
+      if(L === 'י' && !v && (pv === 'i' || pv === 'e')){ pv = ''; return; }
+      if(L === 'ה' && last && !v && !dag) return;
+      if(!v && first && m.includes('\u05b0')) v = 'e';
+    } else {
+      if(L === 'ו' && !first){ out += 'o'; return; }
+      if(L === 'י' && !first){ out += 'i'; return; }
+      if(L === 'ה' && last && !first) return;
+      const nx = cl[i + 1] ? cl[i + 1][0] : '';
+      v = (last || nx === 'ו' || nx === 'י' || ((L === 'א' || L === 'ע') && !first)) ? '' : (L === 'ו' ? 'e' : 'a');
+    }
+    let k = HB[L];
+    if(L === 'ב') k = (dag || (!vocal && first)) ? 'b' : 'v';
+    else if(L === 'כ' || L === 'ך') k = (dag || (!vocal && first)) ? 'k' : 'kh';
+    else if(L === 'פ' || L === 'ף') k = (dag || (!vocal && first)) ? 'p' : 'f';
+    else if(L === 'ש' && m.includes('\u05c2')) k = 's';
+    out += k + v; pv = v;
+  });
+  return out;
+}
+function heLatin(text){ return text.split(/([^\u05d0-\u05ea\u05b0-\u05c7]+)/).map(w => /[\u05d0-\u05ea]/.test(w) ? heWord(w) : w).join(''); }
+/* PURE-END */
+
+let heMode = 'idle';
+async function nakdan(text){
+  const ctrl = new AbortController(), to = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const r = await fetch('https://nakdan-5-0.loadbalancer.dicta.org.il/api', {method: 'POST', headers: {'Content-Type': 'text/plain;charset=UTF-8'}, signal: ctrl.signal,
+      body: JSON.stringify({task: 'nakdan', genre: 'modern', data: text, addmorph: true, keepqq: false, nodageshdefmem: false, patachma: false, keepmetagim: true})});
+    const j = await r.json();
+    if(!Array.isArray(j)) throw new Error('bad reply');
+    return j.map(w => { if(w.sep) return w.word; const o = w.options && w.options[0]; const t = typeof o === 'string' ? o : (o && (o.w || o[0])); return t ? String(t).replace(/\|/g, '') : w.word; }).join('');
+  } finally { clearTimeout(to); }
+}
+async function heRoman(text){
+  if(heMode !== 'rough'){
+    try { const v = await nakdan(text); heMode = 'dicta'; return heLatin(v); }
+    catch(e){ heMode = 'rough'; setMsg('r', 'The Hebrew vowel service could not be reached, so readings are rough guesses.'); }
   }
-  return '';
+  return heLatin(text);
+}
+async function romanize(text, lang){
+  const out = [];
+  for(const p of text.split(new RegExp('(' + HG + ')'))){
+    if(!p) continue;
+    if(new RegExp('^' + HG + '$').test(p)) out.push(koRoman(p));
+    else if(lang === 'zh' && /[\u4e00-\u9fff]/.test(p)) out.push(window.pinyinPro.pinyin(p, {toneType: 'symbol'}));
+    else if(lang === 'ja' && /[\u3040-\u30ff\u4e00-\u9fff]/.test(p)){ const r = await jaConvert(p); out.push(r != null ? r : (window.wanakana ? window.wanakana.toRomaji(p) : '')); }
+    else if(lang === 'he' && /[\u0590-\u05ff]/.test(p)) out.push(await heRoman(p));
+    else out.push(p);
+  }
+  return out.join('').replace(/\s+/g, ' ').trim();
+}
+/* Use another version of the same song that spells a line in kana to get the sung reading */
+function altReadings(arr, h){
+  if(!window.wanakana || !arr.length || arr[0].t == null || !/[\u3040-\u30ff]/.test(arr.map(l => l.text).join(''))) return;
+  const others = lastHits.filter(x => x.id !== h.id && x.syncedLyrics && Math.abs((x.duration || 0) - (h.duration || 0)) <= 8).map(x => parseLRC(x.syncedLyrics)).filter(o => o.length);
+  if(!others.length) return;
+  const KJ = /[\u4e00-\u9fff]/, KJg = /[\u4e00-\u9fff]/g, hira = t => window.wanakana.toHiragana(t.replace(/[^\u3040-\u30ffー]/g, ''));
+  arr.forEach(l => {
+    const kj = (l.text.match(KJg) || []).length; if(!kj) return;
+    const need = hira(l.text.replace(KJg, ''));
+    for(const o of others){
+      const c = o.reduce((b, x) => Math.abs(x.t - l.t) < Math.abs(b.t - l.t) ? x : b);
+      const dt = Math.abs(c.t - l.t); if(dt > 1.5 || KJ.test(c.text)) continue;
+      const ct = hira(c.text); let k = 0;
+      for(const ch of ct) if(ch === need[k]) k++;
+      if(k === need.length && ct.length >= need.length + kj && ct.length <= need.length + 5 * kj && (need.length >= 2 || dt < 0.5)){ l.alt = c.text; break; }
+    }
+  });
 }
 async function translate(text, src, tgt){
   const mail = $('#mail').value.trim();
@@ -298,6 +402,17 @@ async function translate(text, src, tgt){
   const e = new Error(j.responseDetails || 'failed'); e.quota = +j.responseStatus === 429; throw e;
 }
 
+async function translateLine(text, src, tgt){
+  if(src === 'ko') return translate(text, 'ko', tgt);
+  const re = new RegExp(HG, 'g');
+  const ko = (text.match(re) || []).join(' ').trim();
+  const rest = text.replace(re, ' ').replace(/[(（\[]\s*[)）\]]/g, '').replace(/\s+/g, ' ').trim();
+  const out = [];
+  if(/[\p{L}\p{N}]/u.test(rest)) out.push(await translate(rest, src, tgt));
+  if(ko){ const k = await translate(ko, 'ko', tgt); out.push(out.length ? '(' + k + ')' : k); }
+  return out.join(' ');
+}
+
 /* ---------- Render + enrich ---------- */
 function loadLines(arr){ lines = arr; active = -1; render(); enrich(); }
 
@@ -309,7 +424,7 @@ function render(){
     const tx = document.createElement('span'); tx.textContent = l.text;
     const cb = document.createElement('button'); cb.className = 'cp'; cb.innerHTML = IC_COPY; cb.title = 'Copy this line'; cb.setAttribute('aria-label', 'Copy this line');
     cb.onclick = async ev => { ev.stopPropagation(); const ok = await copyText(l.text); cb.innerHTML = ok ? IC_OK : '!'; setTimeout(() => cb.innerHTML = IC_COPY, 1200); };
-    d.firstChild.append(tx, cb);
+    d.firstChild.dir = 'auto'; d.firstChild.append(tx, cb);
     d.onclick = () => { if(player && player.seekTo && l.t != null) player.seekTo(Math.max(0, l.t - off()), true); };
     box.appendChild(d);
   });
@@ -323,36 +438,36 @@ function applyToggles(){
 
 async function enrich(){
   const id = ++runId, src = songLang(), tgt = $('#tlang').value;
-  const rKey = 'r:' + songKey + ':' + src, tKey = 't:' + songKey + ':' + src + ':' + tgt;
+  const rKey = 'r2:' + songKey + ':' + src, tKey = 't2:' + songKey + ':' + src + ':' + tgt;
   const rCache = store.get(rKey) || {}, tCache = store.get(tKey) || {};
   const el = (i, c) => document.querySelector('#L' + i + ' .' + c);
   setMsg('r', ''); setMsg('t', '');
 
   async function doRoman(){
-    if(src !== 'zh' && src !== 'ja') return;
-    if(src === 'ja' && window.wanakana) lines.forEach((l, i) => { if(rCache[i] == null) el(i, 'r').textContent = window.wanakana.toRomaji(l.text); });
+    if(!['zh', 'ja', 'he', 'ko'].includes(src)) return;
+    if(src === 'ja' && window.wanakana) lines.forEach((l, i) => { if(rCache[i] == null) el(i, 'r').textContent = window.wanakana.toRomaji(l.alt || l.text); });
     for(let i = 0; i < lines.length; i++){
       if(id !== runId) return;
       try {
         let v = rCache[i];
-        if(v == null){ v = await romanize(lines[i].text, src); if(!(src === 'ja' && jaState !== 'ready')) rCache[i] = v; }
+        if(v == null){ v = await romanize(lines[i].alt || lines[i].text, src); if(!(src === 'ja' && jaState !== 'ready') && !(src === 'he' && heMode !== 'dicta')) rCache[i] = v; }
         el(i, 'r').textContent = v;
       } catch(e){}
     }
-    if(id === runId){ store.set(rKey, rCache); if(jaState !== 'failed') setMsg('r', ''); }
+    if(id === runId){ store.set(rKey, rCache); if(jaState !== 'failed' && heMode !== 'rough') setMsg('r', ''); }
   }
 
   async function doTrans(){
     if(src === tgt) return;
     setMsg('t', 'Translating…');
-    let quota = false, failed = 0;
+    let quota = false, failed = 0; const memo = {};
     const queue = lines.map((_, i) => i);
     async function worker(){
       while(queue.length && !quota){
         const i = queue.shift();
         if(id !== runId) return;
         try {
-          if(tCache[i] == null) tCache[i] = await translate(lines[i].text, src, tgt);
+          if(tCache[i] == null){ const k = lines[i].text; tCache[i] = await (memo[k] || (memo[k] = translateLine(k, src, tgt))); }
           el(i, 't').textContent = tCache[i];
         } catch(e){ if(e.quota) quota = true; else failed++; }
       }
@@ -386,6 +501,13 @@ async function playVideo(){
   player = new YT.Player('yt', {videoId: id, playerVars: {playsinline: 1, rel: 0}, events: {onReady: e => e.target.playVideo()}});
 }
 function off(){ return parseFloat($('#off').value) || 0; }
+function centerLine(i){
+  const el = document.getElementById('L' + i); if(!el) return;
+  const wrap = $('#ytwrap'), top = wrap.style.display !== 'none' ? wrap.offsetHeight : 0;
+  const r = el.getBoundingClientRect();
+  const target = window.scrollY + r.top + r.height / 2 - (top + (window.innerHeight - top) / 2);
+  window.scrollTo({top: Math.max(0, target), behavior: 'smooth'});
+}
 
 setInterval(() => {
   if(!player || !player.getCurrentTime || !lines.length || lines[0].t == null) return;
@@ -396,7 +518,7 @@ setInterval(() => {
   if(idx === active) return;
   active = idx;
   lines.forEach((_, i) => { const e = document.getElementById('L' + i); e.classList.toggle('on', i === idx); e.classList.toggle('past', i < idx); });
-  if(idx >= 0 && $('#auto').checked) document.getElementById('L' + idx).scrollIntoView({behavior: 'smooth', block: 'start'});
+  if(idx >= 0 && $('#auto').checked) centerLine(idx);
 }, 200);
 
 /* ---------- Wiring ---------- */
@@ -407,6 +529,7 @@ $('#yturl').addEventListener('keydown', e => { if(e.key === 'Enter') playVideo()
 $('#showR').onchange = $('#showT').onchange = applyToggles;
 $('#slang').onchange = $('#tlang').onchange = () => { if(lines.length){ render(); enrich(); } };
 $('#off').oninput = () => { $('#offv').textContent = off().toFixed(1); };
+$('#offReset').onclick = () => { $('#off').value = 0; $('#offv').textContent = '0.0'; };
 $('#usePaste').onclick = () => {
   const t = $('#paste').value.trim(); if(!t) return;
   const synced = parseLRC(t);
@@ -419,13 +542,13 @@ $('#usePaste').onclick = () => {
 
 /* ---------- Free AI-chat translation ---------- */
 function aiPrompt(){
-  const src = songLang(), names = {en: 'English', it: 'Italian', zh: 'Chinese', ja: 'Japanese'};
+  const src = songLang(), names = {en: 'English', it: 'Italian', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', he: 'Hebrew'};
   const tgt = $('#tlang').selectedOptions[0].textContent;
-  const rom = src === 'zh' ? 'pinyin with tone marks' : src === 'ja' ? 'romaji (Hepburn, words separated by spaces)' : '';
+  const rom = src === 'zh' ? 'pinyin with tone marks' : src === 'ja' ? 'romaji (Hepburn, words separated by spaces)' : src === 'he' ? 'Latin transliteration with vowels' : src === 'ko' ? 'Revised Romanization' : '';
   return `I am learning ${names[src]} from song lyrics. For each numbered line below, reply with exactly one line in this format:\nnumber | ${rom ? rom + ' | ' : ''}natural ${tgt} translation\nTranslate the meaning in the context of the whole song, not word by word. Use plain text (no table, no code block), keep every number, and add nothing else.\n\n` + lines.map((l, i) => (i + 1) + ' | ' + l.text).join('\n');
 }
 function applyAI(){
-  const src = songLang(), tgt = $('#tlang').value, hasR = src === 'zh' || src === 'ja', rC = {}, tC = {};
+  const src = songLang(), tgt = $('#tlang').value, hasR = ['zh', 'ja', 'he', 'ko'].includes(src), rC = {}, tC = {};
   let n = 0;
   $('#aiin').value.split('\n').forEach(row => {
     const p = row.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(x => x.trim()), i = parseInt(p[0], 10) - 1;
@@ -434,8 +557,8 @@ function applyAI(){
     n++;
   });
   if(!n){ say('Could not read the answer. Each line should look like: 1 | translation'); return; }
-  if(Object.keys(rC).length) store.set('r:' + songKey + ':' + src, rC);
-  store.set('t:' + songKey + ':' + src + ':' + tgt, tC);
+  if(Object.keys(rC).length) store.set('r2:' + songKey + ':' + src, rC);
+  store.set('t2:' + songKey + ':' + src + ':' + tgt, tC);
   render(); enrich(); say('Applied ' + n + ' lines.');
 }
 $('#aiCopy').onclick = async () => { if(!lines.length) return; say((await copyText(aiPrompt())) ? 'Prompt copied. Paste it into your AI chat.' : 'Copy failed. Try again.'); };
