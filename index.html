@@ -94,6 +94,7 @@ summary{cursor:pointer;font-weight:600}
     </div>
     <label for="off" style="font-size:14px;color:var(--mut)">Sync offset: <b id="offv">0.0</b> s (raise it if lyrics appear late)</label>
     <input id="off" type="range" min="-5" max="5" step="0.1" value="0" style="width:100%">
+    <p><button class="ghost" id="kuroBtn" type="button">Full Japanese romaji (17 MB, page may pause)</button></p>
     <label for="mail" style="font-size:14px;color:var(--mut);display:block;margin-top:8px">Email for a higher free translation limit (optional)</label>
     <input id="mail" type="email" placeholder="you@example.com">
   </details>
@@ -193,7 +194,7 @@ function openSong(h){
   $('#sNote').textContent = h.duration ? 'Lyrics are timed for a version about ' + mmss(h.duration) + ' long. Pick a YouTube video of similar length.' : '';
   songKey = 'lrclib:' + h.id;
   loadLines(h.syncedLyrics ? parseLRC(h.syncedLyrics) : parsePlain(h.plainLyrics));
-  say(h.syncedLyrics ? 'Paste a YouTube link above and press Play.' : 'No timing for this song, so lyrics will not scroll with the music.');
+  say(h.syncedLyrics ? 'Paste a YouTube link below and press Play.' : 'No timing for this song, so lyrics will not scroll with the music.');
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
@@ -202,7 +203,11 @@ function detectLang(){
   const all = lines.map(l => l.text).join('');
   if(/[\u3040-\u30ff]/.test(all)) return 'ja';
   if((all.match(/[\u4e00-\u9fff]/g) || []).length > all.length * .2) return 'zh';
-  return 'en';
+  const w = all.toLowerCase().match(/[a-zàèéìòù']+/g) || [];
+  const IT = new Set(['che','non','di','il','per','con','sei','mi','ti','ci','una','un','è','sono','più','come','ma','se','lo','le','nel','del','io','tu','noi','così','anche','quando','sempre','e','vola','amore','cuore']);
+  const EN = new Set(['the','you','and','to','is','it','of','me','my','in','that','on','for','your','be','we','are','but','this','with','love','all','not','just',"don't",'i']);
+  let it = 0, en = 0; w.forEach(x => { if(IT.has(x)) it++; if(EN.has(x)) en++; });
+  return it > en ? 'it' : 'en';
 }
 function songLang(){ const v = $('#slang').value; return v === 'auto' ? detectLang() : v; }
 
@@ -217,21 +222,10 @@ async function getKuro(){
   })();
   return kuroP;
 }
-let kuroFail = false;
 async function romanize(text, lang){
   if(lang === 'zh') return window.pinyinPro.pinyin(text, {toneType: 'symbol'});
   if(lang === 'ja'){
-    let k = null;
-    if(!kuroFail){
-      try {
-        k = await Promise.race([getKuro(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 45000))]);
-        setMsg('r', '');
-      } catch(e){
-        kuroFail = true;
-        setMsg('r', 'The Japanese dictionary did not load, so only kana is converted for now. For full romaji use the AI option below.');
-      }
-    }
-    if(k) return k.convert(text, {to: 'romaji', romajiSystem: 'hepburn', mode: 'spaced'});
+    if(kuro) return kuro.convert(text, {to: 'romaji', romajiSystem: 'hepburn', mode: 'spaced'});
     return window.wanakana ? window.wanakana.toRomaji(text) : '';
   }
   return '';
@@ -282,16 +276,15 @@ async function enrich(){
 
   async function doRoman(){
     if(src !== 'zh' && src !== 'ja') return;
-    if(src === 'ja' && lines.some((_, i) => rCache[i] == null)) setMsg('r', 'Loading Japanese dictionary (about 17 MB, first time only)…');
     for(let i = 0; i < lines.length; i++){
       if(id !== runId) return;
       try {
         let v = rCache[i];
-        if(v == null){ v = await romanize(lines[i].text, src); if(!(src === 'ja' && kuroFail)) rCache[i] = v; }
+        if(v == null){ v = await romanize(lines[i].text, src); if(!(src === 'ja' && !kuro)) rCache[i] = v; }
         el(i, 'r').textContent = v;
       } catch(e){}
     }
-    if(id === runId){ store.set(rKey, rCache); if(!kuroFail) setMsg('r', ''); }
+    if(id === runId){ store.set(rKey, rCache); setMsg('r', src === 'ja' && !kuro ? 'Japanese romaji covers kana only. For kanji use Settings or the AI option below.' : ''); }
   }
 
   async function doTrans(){
@@ -392,6 +385,13 @@ function applyAI(){
 }
 $('#aiCopy').onclick = async () => { if(!lines.length) return; say((await copyText(aiPrompt())) ? 'Prompt copied. Paste it into your AI chat.' : 'Copy failed. Try again.'); };
 $('#aiApply').onclick = applyAI;
+$('#kuroBtn').onclick = async () => {
+  setMsg('r', 'Loading Japanese dictionary. The page may freeze for up to a minute, please wait…');
+  await new Promise(r => setTimeout(r, 80));
+  try { await Promise.race([getKuro(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 90000))]); }
+  catch(e){ setMsg('r', 'The dictionary did not load. Use the AI option below for full romaji.'); return; }
+  if(lines.length){ render(); enrich(); } else setMsg('r', 'Dictionary ready. Open a Japanese song.');
+};
 </script>
 </body>
 </html>
