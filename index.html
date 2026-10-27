@@ -59,7 +59,7 @@ summary{cursor:pointer;font-weight:600}
 </head>
 <body>
 <main>
-<span id="ver" title="App version">v5</span>
+<span id="ver" title="App version">v6</span>
 <h1>Lyric Lingo</h1>
 <div class="row">
   <input id="q" type="search" placeholder="Artist and song title" aria-label="Search song" enterkeyhint="search">
@@ -115,19 +115,24 @@ summary{cursor:pointer;font-weight:600}
     <p><button class="ghost" id="aiApply">Apply answer</button></p>
   </details>
 
+  <p class="note" id="lstat" role="status"></p>
   <div id="lyrics"></div>
 </section>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.19.6/dist/index.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/umd/wanakana.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
 <script type="text/plain" id="jaWorker">
-importScripts('https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js', 'https://cdn.jsdelivr.net/npm/wanakana@5.3.1/umd/wanakana.min.js');
 let tk = null, q = [];
-kuromoji.builder({dicPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/'}).build((err, t) => {
-  if(err){ postMessage({fail: String(err)}); return; }
-  tk = t; postMessage({ready: 1}); q.forEach(run); q = [];
-});
+const _open = XMLHttpRequest.prototype.open;
+XMLHttpRequest.prototype.open = function(m, u){ arguments[1] = String(u).replace(/^(https?):\/(?!\/)/, '$1://'); return _open.apply(this, arguments); };
+try {
+  importScripts('https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js', 'https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js');
+  kuromoji.builder({dicPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/'}).build((err, t) => {
+    if(err){ postMessage({fail: 'dictionary: ' + (err.message || err)}); return; }
+    tk = t; postMessage({ready: 1}); q.forEach(run); q = [];
+  });
+} catch(e){ postMessage({fail: 'scripts: ' + (e.message || e)}); }
 function conv(text){
   const out = [];
   tk.tokenize(text).forEach(t => {
@@ -157,7 +162,7 @@ const SV = 'viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="curre
 const IC_COPY = '<svg ' + SV + '><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
 const IC_OK = '<svg ' + SV + '><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const msgs = {g:'', r:'', t:''};
-function showMsg(){ $('#status').textContent = Object.values(msgs).filter(Boolean).join(' '); }
+function showMsg(){ $('#status').textContent = Object.values(msgs).filter(Boolean).join(' '); $('#lstat').textContent = [msgs.r, msgs.t].filter(Boolean).join(' '); }
 function say(t){ msgs.g = t || ''; showMsg(); }
 function setMsg(k, t){ msgs[k] = t || ''; showMsg(); }
 async function copyText(t){
@@ -239,9 +244,10 @@ function songLang(){ const v = $('#slang').value; return v === 'auto' ? detectLa
 
 /* Japanese readings run in a background worker, so the page never freezes */
 let jaW = null, jaState = 'idle', jaId = 0; const jaPending = {};
-function jaFail(){
+function jaFail(why){
+  if(jaState === 'failed') return;
   jaState = 'failed';
-  setMsg('r', 'Japanese readings could not load, so only kana is converted. Use the AI option below for kanji.');
+  setMsg('r', 'Japanese readings could not load' + (why ? ' (' + why + ')' : '') + ', so only kana is converted. Use the AI option below for kanji.');
   for(const k in jaPending){ jaPending[k](null); delete jaPending[k]; }
 }
 function jaStart(){
@@ -252,12 +258,17 @@ function jaStart(){
   jaW.onmessage = e => {
     const m = e.data;
     if(m.ready){ jaState = 'ready'; setMsg('r', ''); }
-    else if(m.fail){ jaFail(); }
+    else if(m.fail){ jaFail(m.fail); }
     else if(jaPending[m.id]){ jaPending[m.id](m.out); delete jaPending[m.id]; }
   };
-  jaW.onerror = jaFail;
-  setMsg('r', 'Preparing Japanese readings (first time takes a while, the page stays usable)…');
-  setTimeout(() => { if(jaState === 'loading') jaFail(); }, 120000);
+  jaW.onerror = e => jaFail(e && e.message ? e.message : 'worker error');
+  const t0 = Date.now();
+  const iv = setInterval(() => {
+    if(jaState !== 'loading'){ clearInterval(iv); return; }
+    setMsg('r', 'Preparing Japanese readings… ' + Math.round((Date.now() - t0) / 1000) + 's. The page stays usable.');
+  }, 1000);
+  setMsg('r', 'Preparing Japanese readings… The page stays usable.');
+  setTimeout(() => { if(jaState === 'loading') jaFail('timed out'); }, 120000);
 }
 function jaConvert(text){
   jaStart();
@@ -319,6 +330,7 @@ async function enrich(){
 
   async function doRoman(){
     if(src !== 'zh' && src !== 'ja') return;
+    if(src === 'ja' && window.wanakana) lines.forEach((l, i) => { if(rCache[i] == null) el(i, 'r').textContent = window.wanakana.toRomaji(l.text); });
     for(let i = 0; i < lines.length; i++){
       if(id !== runId) return;
       try {
