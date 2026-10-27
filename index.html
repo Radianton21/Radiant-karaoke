@@ -55,12 +55,13 @@ summary{cursor:pointer;font-weight:600}
 #ver{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);right:8px;z-index:20;font-size:12px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:1px 7px}
 .cp svg{display:block}
 .r:empty,.t:empty{display:none}
+#recent{display:grid;gap:6px;margin-top:8px}
 .note{color:var(--mut);font-size:14px;margin:4px 0 8px}
 </style>
 </head>
 <body>
 <main>
-<span id="ver" title="App version">v9</span>
+<span id="ver" title="App version">v10</span>
 <h1>Lyric Lingo</h1>
 <div class="row">
   <input id="q" type="search" placeholder="Artist and song title" aria-label="Search song" enterkeyhint="search">
@@ -68,6 +69,7 @@ summary{cursor:pointer;font-weight:600}
 </div>
 <div id="status" role="status"></div>
 <div id="results"></div>
+<details id="recentBox" open style="display:none"><summary>Recent songs</summary><div id="recent"></div><p><button class="ghost" id="recentClear" type="button">Clear list</button></p></details>
 
 <section id="song">
   <h2 id="sTitle"></h2>
@@ -101,6 +103,7 @@ summary{cursor:pointer;font-weight:600}
     <p><button class="ghost" id="offReset" type="button">Reset offset to 0.0 s</button></p>
     <label for="mail" style="font-size:14px;color:var(--mut);display:block;margin-top:8px">Email for a higher free translation limit (optional)</label>
     <input id="mail" type="email" placeholder="you@example.com">
+    <p class="note" id="usage"></p>
   </details>
 
   <details>
@@ -226,6 +229,7 @@ function parseLRC(t){
 function parsePlain(t){ return t.split('\n').map(s => s.trim()).filter(Boolean).map(text => ({t:null, text})); }
 
 function openSong(h){
+  addRecent(h);
   $('#results').innerHTML = '';
   $('#sTitle').textContent = h.trackName; $('#sBy').textContent = h.artistName;
   const k = encodeURIComponent(h.artistName + ' ' + h.trackName);
@@ -390,6 +394,7 @@ function altReadings(arr, h){
 }
 async function translate(text, src, tgt){
   const mail = $('#mail').value.trim();
+  addUsage(text.length);
   const u = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + MM[src] + '|' + MM[tgt] + (mail ? '&de=' + encodeURIComponent(mail) : '');
   const j = await (await fetch(u)).json();
   if(+j.responseStatus === 200){
@@ -563,6 +568,33 @@ function applyAI(){
 }
 $('#aiCopy').onclick = async () => { if(!lines.length) return; say((await copyText(aiPrompt())) ? 'Prompt copied. Paste it into your AI chat.' : 'Copy failed. Try again.'); };
 $('#aiApply').onclick = applyAI;
+
+/* ---------- Recent songs + translation usage ---------- */
+function addRecent(h){
+  const list = (store.get('recent') || []).filter(x => x.id !== h.id);
+  list.unshift({id: h.id, trackName: h.trackName, artistName: h.artistName, duration: h.duration, syncedLyrics: h.syncedLyrics, plainLyrics: h.syncedLyrics ? '' : h.plainLyrics});
+  store.set('recent', list.slice(0, 15)); showRecent();
+}
+function showRecent(){
+  const list = store.get('recent') || [], el = $('#recent');
+  $('#recentBox').style.display = list.length ? '' : 'none'; el.innerHTML = '';
+  list.forEach(h => {
+    const b = document.createElement('button'); b.className = 'res';
+    const l = document.createElement('span'); l.textContent = h.trackName;
+    const sm = document.createElement('small'); sm.textContent = ' ' + h.artistName; l.appendChild(sm);
+    b.appendChild(l); b.onclick = () => openSong(h); el.appendChild(b);
+  });
+}
+const useKey = () => 'use:' + new Date().toISOString().slice(0, 10);
+function addUsage(n){ store.set(useKey(), (store.get(useKey()) || 0) + n); showUsage(); }
+function showUsage(){
+  const lim = $('#mail').value.trim() ? 50000 : 5000, u = store.get(useKey()) || 0;
+  $('#usage').textContent = 'Translation used today on this device: ' + u.toLocaleString('en') + ' of about ' + lim.toLocaleString('en') + ' characters. The limit is shared by everyone on the same network (or the same email) and resets about once a day.';
+}
+$('#recentClear').onclick = () => { store.set('recent', []); showRecent(); };
+$('#mail').oninput = () => { store.set('mail', $('#mail').value); showUsage(); };
+$('#mail').value = store.get('mail') || '';
+showRecent(); showUsage();
 </script>
 </body>
 </html>
