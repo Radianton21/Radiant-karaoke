@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14213d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Lyric Lingo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -56,13 +59,41 @@ summary{cursor:pointer;font-weight:600}
 .cp svg{display:block}
 .r:empty,.t:empty{display:none}
 #recent{display:grid;gap:6px;margin-top:8px}
+[hidden]{display:none!important}
+:root[data-theme=green]{--bg:#f1f7f2;--fg:#17301f;--mut:#58705f;--card:#fff;--line:#d3e3d6;--hl:#c9f2a8;--acc:#1f7a4d;--accfg:#fff}
+:root[data-theme=warm]{--bg:#fbf4ea;--fg:#2e2118;--mut:#7a6552;--card:#fffdf9;--line:#ead9c3;--hl:#ffd9a0;--acc:#b8501f;--accfg:#fff}
+@media (prefers-color-scheme:dark){
+:root[data-theme=green]{--bg:#0e1a13;--fg:#e6f2e9;--mut:#8fae98;--card:#16271c;--line:#24402e;--hl:#3f5f1e;--acc:#5fd08f;--accfg:#0e1a13}
+:root[data-theme=warm]{--bg:#1d140e;--fg:#f6eadc;--mut:#b49a82;--card:#2a1d14;--line:#43301f;--hl:#6b4a14;--acc:#ff9a62;--accfg:#1d140e}}
+#tabs{display:flex;gap:6px;align-items:center;margin:0 0 12px}
+#tabs .tab{background:transparent;color:var(--mut);border:1px solid var(--line);padding:7px 14px}
+#tabs .tab[aria-selected=true]{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+#themes{margin-left:auto;display:flex;gap:8px}
+.dot{width:26px;height:26px;border-radius:50%;padding:0;border:2px solid var(--card)}
+.dot[aria-pressed=true]{outline:3px solid var(--fg);outline-offset:1px}
+#saveSel{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);z-index:30;box-shadow:0 3px 12px rgba(0,0,0,.35)}
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:40;max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px 14px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 14px);box-shadow:0 -6px 22px rgba(0,0,0,.3)}
+#sheet label{display:block;font-size:13px;color:var(--mut);margin-bottom:8px}
+.wd{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.wd .w{font:400 21px/1.3 Newsreader,Georgia,serif}.wd .rr{color:var(--acc);font-size:14px}.wd .mm{font-size:15px}.wd .sub{color:var(--mut);font-size:13px}
+.line .o{font-size:calc(21px * var(--fs,1))}.line .r,.line .t{font-size:calc(15px * var(--fs,1))}
+.line .t{cursor:text}mark.sv{background:none;color:inherit;border-bottom:2px solid var(--acc)}
+.rrow{display:flex;gap:6px}.rrow .res{display:block;flex:1;text-align:left;padding:6px 10px;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rrow .x{padding:4px 12px;font-size:18px;line-height:1}
+#ctl{display:flex;gap:6px;align-items:center;margin-top:6px}#ctl select,#ctl button{width:auto;padding:6px 9px;font-size:14px}
+#big{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+#bigX{align-self:flex-end}#bigBody{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px;text-align:center}
+#bigO{font:600 clamp(28px,8vw,52px)/1.25 Newsreader,Georgia,serif}#bigR{color:var(--acc);font-size:clamp(17px,4.5vw,26px)}
+#bigT{color:var(--mut);font-style:italic;font-size:clamp(16px,4vw,24px)}#bigN{color:var(--mut);opacity:.7;font:400 clamp(18px,5vw,30px)/1.3 Newsreader,Georgia,serif;margin-top:20px}
 .note{color:var(--mut);font-size:14px;margin:4px 0 8px}
 </style>
 </head>
 <body>
 <main>
-<span id="ver" title="App version">v10</span>
+<span id="ver" title="App version">v13</span>
 <h1>Lyric Lingo</h1>
+<nav id="tabs"><button class="tab" id="tabS" aria-selected="true">Songs</button><button class="tab" id="tabD" aria-selected="false">Dictionary</button>
+<span id="themes"><button class="dot" data-t="blue" style="background:#2b59c3" aria-label="Blue theme" aria-pressed="true"></button><button class="dot" data-t="green" style="background:#1f7a4d" aria-label="Green theme" aria-pressed="false"></button><button class="dot" data-t="warm" style="background:#e0773a" aria-label="Warm theme" aria-pressed="false"></button></span></nav>
+<div id="songsView">
 <div class="row">
   <input id="q" type="search" placeholder="Artist and song title" aria-label="Search song" enterkeyhint="search">
   <button id="go">Search</button>
@@ -71,6 +102,11 @@ summary{cursor:pointer;font-weight:600}
 <div id="results"></div>
 <details id="recentBox" open style="display:none"><summary>Recent songs</summary><div id="recent"></div><p><button class="ghost" id="recentClear" type="button">Clear list</button></p></details>
 
+  <details>
+  <summary>No lyrics found? Paste your own</summary>
+  <textarea id="paste" rows="5" placeholder="Paste .lrc text with timestamps, or plain lyrics"></textarea>
+  <p><button class="ghost" id="usePaste">Use these lyrics</button></p>
+</details>
 <section id="song">
   <h2 id="sTitle"></h2>
   <p class="by" id="sBy"></p>
@@ -81,9 +117,13 @@ summary{cursor:pointer;font-weight:600}
   </div>
   <div class="row">
     <input id="yturl" type="text" placeholder="Paste YouTube link here" aria-label="YouTube link" inputmode="url">
+    <button class="ghost" id="ytpaste" type="button">Paste</button>
     <button id="ytgo">Play</button>
   </div>
-  <div id="ytwrap"><div id="ytbox"><div id="yt"></div></div></div>
+  <div id="ytwrap"><div id="ytbox"><div id="yt"></div></div>
+  <div id="ctl"><select id="rate" aria-label="Speed"><option value="1">1x</option><option value="0.75">0.75x</option><option value="0.5">0.5x</option></select>
+  <select id="loop" aria-label="Loop"><option value="0">Loop: off</option><option value="1">Loop 1 line</option><option value="2">Loop 2 lines</option><option value="3">Loop 3 lines</option></select>
+  <button class="ghost" id="singBtn" type="button">Sing view</button></div></div>
 
   <details>
     <summary>Settings</summary>
@@ -104,13 +144,10 @@ summary{cursor:pointer;font-weight:600}
     <label for="mail" style="font-size:14px;color:var(--mut);display:block;margin-top:8px">Email for a higher free translation limit (optional)</label>
     <input id="mail" type="email" placeholder="you@example.com">
     <p class="note" id="usage"></p>
+    <div class="chk"><span>Text size</span><button class="ghost" id="fsMinus" type="button">A−</button><button class="ghost" id="fsPlus" type="button">A+</button></div>
+    <p><button class="ghost" id="bkSave" type="button">Download backup</button> <button class="ghost" id="bkLoad" type="button">Load backup</button><input type="file" id="bkFile" accept="application/json,.json" hidden></p>
   </details>
 
-  <details>
-    <summary>No lyrics found? Paste your own</summary>
-    <textarea id="paste" rows="5" placeholder="Paste .lrc text with timestamps, or plain lyrics"></textarea>
-    <p><button class="ghost" id="usePaste">Use these lyrics</button></p>
-  </details>
 
   <details>
     <summary>Better translation with a free AI chat</summary>
@@ -123,6 +160,27 @@ summary{cursor:pointer;font-weight:600}
   <p class="note" id="lstat" role="status"></p>
   <div id="lyrics"></div>
 </section>
+</div>
+<section id="dictView" hidden>
+  <h2 style="font:600 22px/1.2 Newsreader,Georgia,serif;margin:6px 0 8px">My words</h2>
+  <p class="note" id="dictEmpty">Select a word or phrase in the lyrics, then tap Save word.</p>
+  <div id="dictTools" hidden>
+    <div class="row"><select id="expLang" aria-label="Language to export"></select><button class="ghost" id="expCopy" type="button">Copy for Quizlet</button><button class="ghost" id="expFile" type="button">Download</button></div>
+    <label class="note" style="display:block"><input type="checkbox" id="expCtx"> Add the example line to the definition</label>
+    <p class="note" id="expMsg" role="status"></p>
+  </div>
+  <div id="dictList"></div>
+</section>
+<div id="big" hidden><button class="ghost" id="bigX" type="button">Close</button>
+  <div id="bigBody"><div id="bigO"></div><div id="bigR"></div><div id="bigT"></div><div id="bigN"></div></div></div>
+<button id="saveSel" type="button" hidden>Save word</button>
+<div id="sheet" hidden role="dialog" aria-label="Save word">
+  <label>Word<input id="sw" type="text"></label>
+  <label>Reading<input id="sr" type="text"></label>
+  <label>Meaning<input id="sm" type="text"></label>
+  <p class="note" id="sctx"></p>
+  <div class="row"><button id="sSave" type="button">Save</button><button class="ghost" id="sCancel" type="button">Cancel</button></div>
+</div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.19.6/dist/index.js"></script>
@@ -167,7 +225,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 };
-let lines = [], songKey = '', player = null, active = -1, runId = 0, lastHits = [];
+let lines = [], songKey = '', player = null, active = -1, runId = 0, lastHits = [], loopIdx = -1;
 const MM = {zh:'zh-CN', ja:'ja', ko:'ko', he:'he', it:'it', en:'en', ru:'ru', es:'es', fr:'fr', de:'de'};
 
 const SV = 'viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
@@ -188,13 +246,19 @@ function mmss(s){ s = Math.round(s || 0); return Math.floor(s/60) + ':' + String
 function decode(s){ return new DOMParser().parseFromString(s || '', 'text/html').documentElement.textContent; }
 
 /* ---------- Lyrics search (LRCLIB) ---------- */
+async function getJSON(url){
+  let err;
+  for(let k = 0; k < 3; k++){
+    try { const r = await fetch(url); if(r.ok) return await r.json(); err = new Error('status ' + r.status); if(r.status < 500) break; } catch(e){ err = e; }
+    if(k < 2){ say('The lyrics service is busy, retrying…'); await new Promise(r => setTimeout(r, 1500 * (k + 1))); }
+  }
+  throw err;
+}
 async function search(){
   const q = $('#q').value.trim(); if(!q) return;
   say('Searching…'); $('#results').innerHTML = '';
   try {
-    const r = await fetch('https://lrclib.net/api/search?q=' + encodeURIComponent(q));
-    if(!r.ok) throw new Error('Lyrics service replied with status ' + r.status);
-    const data = await r.json();
+    const data = await getJSON('https://lrclib.net/api/search?q=' + encodeURIComponent(q));
     if(!Array.isArray(data)) throw new Error('Unexpected reply from lyrics service');
     lastHits = data.filter(d => d.syncedLyrics || d.plainLyrics);
     const hits = lastHits.slice(0, 12);
@@ -211,6 +275,7 @@ async function search(){
       $('#results').appendChild(b);
     });
   } catch(e){
+    if(/status 5/.test(e.message || '')){ say('The lyrics service is busy right now. Try again in a minute. Recent songs and pasted lyrics still work.'); return; }
     const hosted = location.protocol === 'https:' && !/claude|anthropic/.test(location.hostname);
     say('Search failed (' + (e.message || 'network error') + '). ' + (hosted ? 'Check your connection and try again.' : 'Open the app from your GitHub Pages link, since it cannot reach the lyrics service from here.'));
   }
@@ -238,6 +303,7 @@ function openSong(h){
   $('#song').style.display = 'block';
   $('#sNote').textContent = h.duration ? 'Lyrics are timed for a version about ' + mmss(h.duration) + ' long. Pick a YouTube video of similar length.' : '';
   songKey = 'lrclib:' + h.id;
+  const so = +store.get('off:' + songKey) || 0; $('#off').value = so; $('#offv').textContent = so.toFixed(1); loopIdx = -1; $('#loop').value = '0';
   const arr = h.syncedLyrics ? parseLRC(h.syncedLyrics) : parsePlain(h.plainLyrics);
   altReadings(arr, h); loadLines(arr);
   say(h.syncedLyrics ? 'Paste a YouTube link below and press Play.' : 'No timing for this song, so lyrics will not scroll with the music.');
@@ -392,7 +458,26 @@ function altReadings(arr, h){
     }
   });
 }
+const LG = {zh:'zh', he:'iw', ja:'ja', ko:'ko', it:'it', en:'en', ru:'ru', es:'es', fr:'fr', de:'de'};
+const LINGVA = ['https://lingva.ml', 'https://lingva.garudalinux.org', 'https://translate.plausibility.cloud', 'https://lingva.lunar.icu'];
+let lgDead = false, lgBase = 0, engine = 'MyMemory', chunkMiss = 0;
+async function lingva(text, src, tgt){
+  if(lgDead) throw new Error('off');
+  for(let k = 0; k < LINGVA.length; k++){
+    const i = (lgBase + k) % LINGVA.length, ctrl = new AbortController(), to = setTimeout(() => ctrl.abort(), 6000);
+    try {
+      const r = await fetch(LINGVA[i] + '/api/v1/' + LG[src] + '/' + LG[tgt] + '/' + encodeURIComponent(text), {signal: ctrl.signal});
+      const j = await r.json();
+      if(j && j.translation){ lgBase = i; return j.translation; }
+    } catch(e){} finally { clearTimeout(to); }
+  }
+  lgDead = true; throw new Error('lingva unavailable');
+}
 async function translate(text, src, tgt){
+  try { const t = await lingva(text, src, tgt); engine = 'Google Translate (via Lingva)'; return t; } catch(e){}
+  engine = 'MyMemory'; return mymemory(text, src, tgt);
+}
+async function mymemory(text, src, tgt){
   const mail = $('#mail').value.trim();
   addUsage(text.length);
   const u = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + MM[src] + '|' + MM[tgt] + (mail ? '&de=' + encodeURIComponent(mail) : '');
@@ -430,10 +515,17 @@ function render(){
     const cb = document.createElement('button'); cb.className = 'cp'; cb.innerHTML = IC_COPY; cb.title = 'Copy this line'; cb.setAttribute('aria-label', 'Copy this line');
     cb.onclick = async ev => { ev.stopPropagation(); const ok = await copyText(l.text); cb.innerHTML = ok ? IC_OK : '!'; setTimeout(() => cb.innerHTML = IC_COPY, 1200); };
     d.firstChild.dir = 'auto'; d.firstChild.append(tx, cb);
-    d.onclick = () => { if(player && player.seekTo && l.t != null) player.seekTo(Math.max(0, l.t - off()), true); };
+    const te = d.children[2]; te.title = 'Tap to edit this translation';
+    te.onclick = ev => {
+      if(!te.textContent) return; ev.stopPropagation();
+      const v = prompt('Edit translation', te.textContent); if(v === null) return;
+      te.textContent = v.trim();
+      const k = 't3:' + songKey + ':' + songLang() + ':' + $('#tlang').value, c = store.get(k) || {}; c[i] = v.trim(); store.set(k, c);
+    };
+    d.onclick = () => { if(+$('#loop').value) loopIdx = i; if(player && player.seekTo && l.t != null) player.seekTo(Math.max(0, l.t - off()), true); };
     box.appendChild(d);
   });
-  applyToggles();
+  applyToggles(); hl();
 }
 function applyToggles(){
   const b = $('#lyrics');
@@ -443,7 +535,7 @@ function applyToggles(){
 
 async function enrich(){
   const id = ++runId, src = songLang(), tgt = $('#tlang').value;
-  const rKey = 'r2:' + songKey + ':' + src, tKey = 't2:' + songKey + ':' + src + ':' + tgt;
+  const rKey = 'r2:' + songKey + ':' + src, tKey = 't3:' + songKey + ':' + src + ':' + tgt;
   const rCache = store.get(rKey) || {}, tCache = store.get(tKey) || {};
   const el = (i, c) => document.querySelector('#L' + i + ' .' + c);
   setMsg('r', ''); setMsg('t', '');
@@ -465,22 +557,42 @@ async function enrich(){
   async function doTrans(){
     if(src === tgt) return;
     setMsg('t', 'Translating…');
+    const enc = new TextEncoder(), hg = new RegExp(HG), chunks = [];
+    let cur = [], size = 0;
+    const flush = () => { if(cur.length) chunks.push(cur); cur = []; size = 0; };
+    lines.forEach((l, i) => {
+      if(tCache[i] != null) return;
+      if(src !== 'ko' && hg.test(l.text)){ flush(); chunks.push([i]); return; }
+      const n = enc.encode(l.text).length + 1;
+      if(cur.length && size + n > 400) flush();
+      cur.push(i); size += n;
+    });
+    flush();
     let quota = false, failed = 0; const memo = {};
-    const queue = lines.map((_, i) => i);
     async function worker(){
-      while(queue.length && !quota){
-        const i = queue.shift();
+      while(chunks.length && !quota){
+        const ch = chunks.shift();
         if(id !== runId) return;
         try {
-          if(tCache[i] == null){ const k = lines[i].text; tCache[i] = await (memo[k] || (memo[k] = translateLine(k, src, tgt))); }
-          el(i, 't').textContent = tCache[i];
+          let outs = null;
+          if(ch.length > 1 && chunkMiss < 2){
+            const r = await translate(ch.map(i => lines[i].text).join('\n'), src, tgt);
+            const parts = r.split(/\r?\n/);
+            if(parts.length === ch.length) outs = parts; else chunkMiss++;
+          }
+          if(outs) ch.forEach((i, k) => { tCache[i] = outs[k].trim(); el(i, 't').textContent = tCache[i]; });
+          else for(const i of ch){
+            const k = lines[i].text;
+            tCache[i] = await (memo[k] || (memo[k] = translateLine(k, src, tgt)));
+            el(i, 't').textContent = tCache[i];
+          }
         } catch(e){ if(e.quota) quota = true; else failed++; }
       }
     }
-    await Promise.all([worker(), worker(), worker()]);
+    await Promise.all([worker(), worker()]);
     if(id !== runId) return;
     store.set(tKey, tCache);
-    setMsg('t', quota ? 'Daily free translation limit reached. Add your email in Settings for a higher limit, or use the AI option below.' : failed ? 'Some lines could not be translated. The AI option below can fill them in.' : '');
+    setMsg('t', quota ? 'Daily free translation limit reached. Add your email in Settings for a higher limit, or use the AI option below.' : failed ? 'Some lines could not be translated. The AI option below can fill them in.' : 'Translated with ' + engine + '.');
   }
 
   await Promise.all([doRoman(), doTrans()]);
@@ -503,7 +615,7 @@ async function playVideo(){
   say(''); $('#ytwrap').style.display = 'block';
   await loadYT();
   if(player && player.loadVideoById){ player.loadVideoById(id); return; }
-  player = new YT.Player('yt', {videoId: id, playerVars: {playsinline: 1, rel: 0}, events: {onReady: e => e.target.playVideo()}});
+  player = new YT.Player('yt', {videoId: id, playerVars: {playsinline: 1, rel: 0}, events: {onReady: e => { e.target.setPlaybackRate(+$('#rate').value); e.target.playVideo(); }}});
 }
 function off(){ return parseFloat($('#off').value) || 0; }
 function centerLine(i){
@@ -518,10 +630,15 @@ setInterval(() => {
   if(!player || !player.getCurrentTime || !lines.length || lines[0].t == null) return;
   if(player.getPlayerState && player.getPlayerState() !== 1) return;
   const now = player.getCurrentTime() + off();
+  const LP = +$('#loop').value;
+  if(LP && loopIdx >= 0 && lines[loopIdx]){
+    const last = Math.min(lines.length - 1, loopIdx + LP - 1), end = lines[last + 1] ? lines[last + 1].t : lines[last].t + 6;
+    if(now >= end - 0.15){ player.seekTo(Math.max(0, lines[loopIdx].t - off()), true); return; }
+  }
   let idx = -1;
   for(let i = 0; i < lines.length; i++){ if(lines[i].t <= now) idx = i; else break; }
   if(idx === active) return;
-  active = idx;
+  active = idx; updateBig();
   lines.forEach((_, i) => { const e = document.getElementById('L' + i); e.classList.toggle('on', i === idx); e.classList.toggle('past', i < idx); });
   if(idx >= 0 && $('#auto').checked) centerLine(idx);
 }, 200);
@@ -533,8 +650,8 @@ $('#ytgo').onclick = playVideo;
 $('#yturl').addEventListener('keydown', e => { if(e.key === 'Enter') playVideo(); });
 $('#showR').onchange = $('#showT').onchange = applyToggles;
 $('#slang').onchange = $('#tlang').onchange = () => { if(lines.length){ render(); enrich(); } };
-$('#off').oninput = () => { $('#offv').textContent = off().toFixed(1); };
-$('#offReset').onclick = () => { $('#off').value = 0; $('#offv').textContent = '0.0'; };
+$('#off').oninput = () => { $('#offv').textContent = off().toFixed(1); store.set('off:' + songKey, off()); };
+$('#offReset').onclick = () => { $('#off').value = 0; $('#offv').textContent = '0.0'; store.set('off:' + songKey, 0); };
 $('#usePaste').onclick = () => {
   const t = $('#paste').value.trim(); if(!t) return;
   const synced = parseLRC(t);
@@ -563,7 +680,7 @@ function applyAI(){
   });
   if(!n){ say('Could not read the answer. Each line should look like: 1 | translation'); return; }
   if(Object.keys(rC).length) store.set('r2:' + songKey + ':' + src, rC);
-  store.set('t2:' + songKey + ':' + src + ':' + tgt, tC);
+  store.set('t3:' + songKey + ':' + src + ':' + tgt, tC);
   render(); enrich(); say('Applied ' + n + ' lines.');
 }
 $('#aiCopy').onclick = async () => { if(!lines.length) return; say((await copyText(aiPrompt())) ? 'Prompt copied. Paste it into your AI chat.' : 'Copy failed. Try again.'); };
@@ -575,15 +692,21 @@ function addRecent(h){
   list.unshift({id: h.id, trackName: h.trackName, artistName: h.artistName, duration: h.duration, syncedLyrics: h.syncedLyrics, plainLyrics: h.syncedLyrics ? '' : h.plainLyrics});
   store.set('recent', list.slice(0, 15)); showRecent();
 }
+let recentAll = false;
 function showRecent(){
   const list = store.get('recent') || [], el = $('#recent');
   $('#recentBox').style.display = list.length ? '' : 'none'; el.innerHTML = '';
-  list.forEach(h => {
-    const b = document.createElement('button'); b.className = 'res';
-    const l = document.createElement('span'); l.textContent = h.trackName;
-    const sm = document.createElement('small'); sm.textContent = ' ' + h.artistName; l.appendChild(sm);
-    b.appendChild(l); b.onclick = () => openSong(h); el.appendChild(b);
+  (recentAll ? list : list.slice(0, 5)).forEach(h => {
+    const row = document.createElement('div'); row.className = 'rrow';
+    const b = document.createElement('button'); b.className = 'res'; b.textContent = h.trackName + ' · ' + h.artistName; b.onclick = () => openSong(h);
+    const x = document.createElement('button'); x.className = 'ghost x'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove from history');
+    x.onclick = () => { store.set('recent', (store.get('recent') || []).filter(y => y.id !== h.id)); showRecent(); };
+    row.append(b, x); el.appendChild(row);
   });
+  if(list.length > 5){
+    const m = document.createElement('button'); m.className = 'ghost'; m.textContent = recentAll ? 'Show less' : 'Show ' + (list.length - 5) + ' more';
+    m.onclick = () => { recentAll = !recentAll; showRecent(); }; el.appendChild(m);
+  }
 }
 const useKey = () => 'use:' + new Date().toISOString().slice(0, 10);
 function addUsage(n){ store.set(useKey(), (store.get(useKey()) || 0) + n); showUsage(); }
@@ -595,6 +718,150 @@ $('#recentClear').onclick = () => { store.set('recent', []); showRecent(); };
 $('#mail').oninput = () => { store.set('mail', $('#mail').value); showUsage(); };
 $('#mail').value = store.get('mail') || '';
 showRecent(); showUsage();
+
+/* ---------- Themes, tabs, dictionary ---------- */
+const LN = {en:'English', it:'Italian', zh:'Chinese', ja:'Japanese', ko:'Korean', he:'Hebrew'};
+function setTheme(t){
+  document.documentElement.dataset.theme = t === 'blue' ? '' : t; store.set('theme', t);
+  document.querySelectorAll('.dot').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === t)));
+}
+document.querySelectorAll('.dot').forEach(b => b.onclick = () => setTheme(b.dataset.t));
+setTheme(store.get('theme') || 'blue');
+function tab(d){
+  $('#songsView').hidden = d; $('#dictView').hidden = !d;
+  $('#tabS').setAttribute('aria-selected', String(!d)); $('#tabD').setAttribute('aria-selected', String(d));
+  if(d) showDict();
+}
+$('#tabS').onclick = () => tab(false); $('#tabD').onclick = () => tab(true);
+
+let pending = {text: '', i: -1}, hideT = null, sheetLang = 'en', sheetCtx = '';
+document.addEventListener('selectionchange', () => {
+  const sel = window.getSelection(), t = sel ? sel.toString().trim() : '', n = sel && sel.anchorNode;
+  const ln = n && (n.nodeType === 3 ? n.parentNode : n).closest ? (n.nodeType === 3 ? n.parentNode : n).closest('.line') : null;
+  clearTimeout(hideT);
+  if(t && ln && t.length <= 60){ pending = {text: t, i: +ln.id.slice(1)}; $('#saveSel').hidden = false; }
+  else hideT = setTimeout(() => { $('#saveSel').hidden = true; }, 700);
+});
+$('#saveSel').onclick = async () => {
+  const {text, i} = pending; if(!text) return;
+  const src = songLang(), tgt = $('#tlang').value;
+  sheetLang = src; sheetCtx = lines[i] ? lines[i].text : '';
+  $('#sw').value = text; $('#sr').value = ''; $('#sm').value = ''; $('#sctx').textContent = sheetCtx;
+  $('#sheet').hidden = false; $('#saveSel').hidden = true;
+  if(['zh', 'ja', 'he', 'ko'].includes(src)){ try { const r = await romanize(text, src); if(!$('#sr').value) $('#sr').value = r; } catch(e){} }
+  if(src !== tgt){ try { const m = await translate(text, src, tgt); if(!$('#sm').value) $('#sm').value = m.replace(/\n/g, ' '); } catch(e){} }
+};
+$('#sCancel').onclick = () => { $('#sheet').hidden = true; };
+$('#sSave').onclick = () => {
+  const w = $('#sw').value.trim(); if(!w) return;
+  const list = store.get('dict') || [];
+  if(!list.some(x => x.w === w && x.lang === sheetLang)) list.unshift({w, r: $('#sr').value.trim(), m: $('#sm').value.trim(), lang: sheetLang, ctx: sheetCtx, song: $('#sTitle').textContent, ts: Date.now()});
+  store.set('dict', list); $('#sheet').hidden = true; hl();
+  if(window.getSelection) window.getSelection().removeAllRanges();
+  say('Saved to Dictionary.');
+};
+function showDict(){
+  const list = store.get('dict') || [], box = $('#dictList');
+  const sel = $('#expLang'), prev = sel.value || 'all';
+  sel.innerHTML = '';
+  const opt = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  opt('all', 'All languages'); Object.keys(LN).filter(c => list.some(x => x.lang === c)).forEach(c => opt(c, LN[c]));
+  sel.value = [...sel.options].some(o => o.value === prev) ? prev : 'all'; $('#dictTools').hidden = !list.length;
+  const open = new Set([...box.querySelectorAll('details[open]')].map(d => d.dataset.l));
+  box.innerHTML = ''; $('#dictEmpty').hidden = list.length > 0;
+  const mk = (c, t) => { const e = document.createElement('div'); e.className = c; e.textContent = t; return e; };
+  Object.keys(LN).forEach(code => {
+    const items = list.filter(x => x.lang === code); if(!items.length) return;
+    const d = document.createElement('details'); d.dataset.l = code; d.open = open.has(code);
+    const sm = document.createElement('summary'); sm.textContent = LN[code] + ' (' + items.length + ')'; d.appendChild(sm);
+    items.forEach(x => {
+      const row = document.createElement('div'); row.className = 'wd';
+      const left = document.createElement('div'); left.appendChild(mk('w', x.w));
+      if(x.r) left.appendChild(mk('rr', x.r)); if(x.m) left.appendChild(mk('mm', x.m)); if(x.ctx) left.appendChild(mk('sub', x.ctx));
+      const del = document.createElement('button'); del.className = 'ghost'; del.textContent = '×'; del.setAttribute('aria-label', 'Delete word');
+      del.onclick = () => { store.set('dict', (store.get('dict') || []).filter(y => y.ts !== x.ts)); showDict(); };
+      row.append(left, del); d.appendChild(row);
+    });
+    box.appendChild(d);
+  });
+}
+
+/* ---------- Study tools, backup, offline ---------- */
+function hl(){
+  const ws = (store.get('dict') || []).filter(x => x.lang === songLang()).map(x => x.w).filter(Boolean).sort((a, b) => b.length - a.length);
+  const re = ws.length ? new RegExp('(' + ws.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'g') : null;
+  document.querySelectorAll('.line .o span').forEach((sp, i) => {
+    if(!lines[i]) return;
+    sp.textContent = '';
+    (re ? lines[i].text.split(re) : [lines[i].text]).forEach((p, k) => {
+      if(!p) return;
+      if(re && k % 2){ const m = document.createElement('mark'); m.className = 'sv'; m.textContent = p; sp.appendChild(m); }
+      else sp.appendChild(document.createTextNode(p));
+    });
+  });
+}
+function updateBig(){
+  if($('#big').hidden) return;
+  const i = active, g = (n, c) => { const e = document.querySelector('#L' + n + ' .' + c); return e ? e.textContent : ''; };
+  $('#bigO').textContent = i >= 0 && lines[i] ? lines[i].text : '';
+  $('#bigR').textContent = i >= 0 && $('#showR').checked ? g(i, 'r') : '';
+  $('#bigT').textContent = i >= 0 && $('#showT').checked ? g(i, 't') : '';
+  $('#bigN').textContent = lines[i + 1] ? lines[i + 1].text : '';
+}
+$('#singBtn').onclick = () => { $('#big').hidden = false; updateBig(); };
+$('#bigX').onclick = () => { $('#big').hidden = true; };
+$('#bigBody').onclick = () => { if(player && player.getPlayerState) player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); };
+$('#rate').onchange = () => { if(player && player.setPlaybackRate) player.setPlaybackRate(+$('#rate').value); };
+$('#loop').onchange = () => { loopIdx = +$('#loop').value ? Math.max(active, 0) : -1; };
+$('#ytpaste').onclick = async () => {
+  try { $('#yturl').value = await navigator.clipboard.readText(); playVideo(); }
+  catch(e){ say('Could not read the clipboard. Long-press the link field and choose Paste.'); }
+};
+let fs = +store.get('fs') || 1;
+function setFs(v){ fs = Math.min(1.8, Math.max(0.8, Math.round(v * 10) / 10)); store.set('fs', fs); document.documentElement.style.setProperty('--fs', fs); }
+$('#fsMinus').onclick = () => setFs(fs - 0.1); $('#fsPlus').onclick = () => setFs(fs + 0.1); setFs(fs);
+
+$('#bkSave').onclick = () => {
+  const data = {};
+  try { for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); data[k] = localStorage.getItem(k); } } catch(e){}
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({app: 'lyric-lingo', data})], {type: 'application/json'}));
+  a.download = 'lyric-lingo-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove(); say('Backup downloaded.');
+};
+$('#bkLoad').onclick = () => $('#bkFile').click();
+$('#bkFile').onchange = async e => {
+  try {
+    const j = JSON.parse(await e.target.files[0].text()); if(j.app !== 'lyric-lingo') throw new Error('not a backup');
+    for(const k in j.data){
+      const v = j.data[k], cur = localStorage.getItem(k);
+      if(k === 'dict' || k === 'recent'){
+        const a = JSON.parse(cur || '[]'), b = JSON.parse(v), key = x => k === 'dict' ? x.w + '|' + x.lang : x.id, seen = new Set(a.map(key));
+        localStorage.setItem(k, JSON.stringify(a.concat(b.filter(x => !seen.has(key(x))))));
+      } else if(cur == null) localStorage.setItem(k, v);
+    }
+    say('Backup loaded. Reloading…'); setTimeout(() => location.reload(), 600);
+  } catch(err){ say('That file is not a valid backup.'); }
+};
+function expText(){
+  const lang = $('#expLang').value, ctx = $('#expCtx').checked, cl = t => String(t || '').replace(/[\t\r\n]+/g, ' ').trim();
+  return (store.get('dict') || []).filter(x => lang === 'all' || x.lang === lang).reverse().map(x => {
+    let def = [cl(x.r), cl(x.m)].filter(Boolean).join(' — ');
+    if(ctx && x.ctx) def += (def ? ' ' : '') + '(' + cl(x.ctx) + ')';
+    return def ? cl(x.w) + '\t' + def : '';
+  }).filter(Boolean).join('\n');
+}
+$('#expCopy').onclick = async () => {
+  const t = expText();
+  $('#expMsg').textContent = !t ? 'Nothing to export yet.' : (await copyText(t)) ? 'Copied. In Quizlet: Create, then Import, paste, and choose Tab between term and definition and New line between rows.' : 'Copy failed. Use Download instead.';
+};
+$('#expFile').onclick = () => {
+  const t = expText(); if(!t){ $('#expMsg').textContent = 'Nothing to export yet.'; return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([t], {type: 'text/plain'})); a.download = 'lyric-lingo-words-' + new Date().toISOString().slice(0, 10) + '.txt';
+  document.body.appendChild(a); a.click(); a.remove(); $('#expMsg').textContent = 'File downloaded. Open it, copy everything, and paste into Quizlet Import.';
+};
+if('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>
