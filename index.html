@@ -79,6 +79,9 @@ summary{cursor:pointer;font-weight:600}
 .line .o{font-size:calc(21px * var(--fs,1))}.line .r,.line .t{font-size:calc(15px * var(--fs,1))}
 .line .t{cursor:text}mark.sv{background:none;color:inherit;border-bottom:2px solid var(--acc)}
 input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+#pasteBox{background:none;border:0;padding:0;margin:4px 0}
+#pasteBox summary{font-weight:400;font-size:14px;color:var(--mut)}
+#trTools{display:flex;gap:6px;align-items:center;margin:6px 0}#trTools select{width:auto;padding:6px 9px;font-size:14px}#trTools button{padding:6px 12px;font-size:14px}
 #recentBox{background:none;border:0;padding:0;margin:4px 0}
 #recentBox summary{font-weight:400;font-size:14px;color:var(--mut)}
 #recent{gap:0;margin-top:4px}
@@ -91,13 +94,15 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
 #big{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
 #bigX{align-self:flex-end}#bigBody{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px;text-align:center}
 #bigO{font:600 clamp(28px,8vw,52px)/1.25 Newsreader,Georgia,serif}#bigR{color:var(--acc);font-size:clamp(17px,4.5vw,26px)}
-#bigT{color:var(--mut);font-style:italic;font-size:clamp(16px,4vw,24px)}#bigN{color:var(--mut);opacity:.7;font:400 clamp(18px,5vw,30px)/1.3 Newsreader,Georgia,serif;margin-top:20px}
+#bigT{color:var(--mut);font-style:italic;font-size:clamp(16px,4vw,24px)}#bigCur{display:flex;flex-direction:column;gap:10px;margin:14px 0}
+.bn{color:var(--fg);font:400 clamp(17px,4.6vw,26px)/1.3 Newsreader,Georgia,serif}
+#bigP2{opacity:.22}#bigP1{opacity:.42}#bigN1{opacity:.6}#bigN2{opacity:.32}.bn:empty{display:none}
 .note{color:var(--mut);font-size:14px;margin:4px 0 8px}
 </style>
 </head>
 <body>
 <main>
-<span id="ver" title="App version">v17</span>
+<span id="ver" title="App version">v19</span>
 <h1>Lyric Lingo</h1>
 <nav id="tabs"><button class="tab" id="tabS" aria-selected="true">Songs</button><button class="tab" id="tabD" aria-selected="false">Dictionary</button>
 <span id="themes"><button class="dot" data-t="blue" style="background:#2b59c3" aria-label="Blue theme" aria-pressed="true"></button><button class="dot" data-t="green" style="background:#1f7a4d" aria-label="Green theme" aria-pressed="false"></button><button class="dot" data-t="warm" style="background:#e0773a" aria-label="Warm theme" aria-pressed="false"></button></span></nav>
@@ -110,7 +115,7 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
 <div id="results"></div>
 <details id="recentBox" style="display:none"><summary>Recent songs</summary><div id="recent"></div><p><button class="ghost" id="recentClear" type="button">Clear list</button></p></details>
 
-  <details>
+  <details id="pasteBox">
   <summary>No lyrics found? Paste your own</summary>
   <textarea id="paste" rows="5" placeholder="Paste .lrc text with timestamps, or plain lyrics"></textarea>
   <p><button class="ghost" id="usePaste">Use these lyrics</button></p>
@@ -172,6 +177,7 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
     <div class="row" style="margin-top:6px"><input id="rL" type="number" step="0.1" min="0" placeholder="Last line starts (seconds)" aria-label="Last line start in seconds"><button class="ghost" id="rLset" type="button">Set now</button></div>
     <p><button id="rApply" type="button">Apply timing</button></p>
   </details>
+  <div id="trTools"><select id="engSel" aria-label="Translation service"><option value="auto">Service: auto</option><option value="lingva">Google (Lingva)</option><option value="mymemory">MyMemory</option></select><button class="ghost" id="retr" type="button">Retranslate</button></div>
   <p class="note" id="lstat" role="status"></p>
   <div id="lyrics"></div>
 </section>
@@ -187,7 +193,7 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
   <div id="dictList"></div>
 </section>
 <div id="big" hidden><button class="ghost" id="bigX" type="button">Close</button>
-  <div id="bigBody"><div id="bigO"></div><div id="bigR"></div><div id="bigT"></div><div id="bigN"></div></div></div>
+  <div id="bigBody"><div class="bn" id="bigP2"></div><div class="bn" id="bigP1"></div><div id="bigCur"><div id="bigO"></div><div id="bigR"></div><div id="bigT"></div></div><div class="bn" id="bigN1"></div><div class="bn" id="bigN2"></div></div></div>
 <button id="saveSel" type="button" hidden>Save word</button>
 <div id="sheet" hidden role="dialog" aria-label="Save word">
   <label>Word<input id="sw" type="text"></label>
@@ -478,8 +484,8 @@ function altReadings(arr, h){
   });
 }
 const LG = {zh:'zh', he:'iw', ja:'ja', ko:'ko', it:'it', en:'en', ru:'ru', es:'es', fr:'fr', de:'de'};
-const LINGVA = ['https://lingva.ml', 'https://lingva.garudalinux.org', 'https://translate.plausibility.cloud', 'https://lingva.lunar.icu'];
-let lgDead = false, lgBase = 0, engine = 'MyMemory', chunkMiss = 0;
+const LINGVA = ['https://lingva.ml', 'https://translate.plausibility.cloud', 'https://lingva.garudalinux.org', 'https://translate.projectsegfau.lt', 'https://lingva.lunar.icu', 'https://lingva.thedaviddelta.com'];
+let lgDead = false, lgBase = 0, engine = 'MyMemory', chunkMiss = 0, engineChoice = 'auto';
 async function lingva(text, src, tgt){
   if(lgDead) throw new Error('off');
   for(let k = 0; k < LINGVA.length; k++){
@@ -493,7 +499,10 @@ async function lingva(text, src, tgt){
   lgDead = true; throw new Error('lingva unavailable');
 }
 async function translate(text, src, tgt){
-  try { const t = await lingva(text, src, tgt); engine = 'Google Translate (via Lingva)'; return t; } catch(e){}
+  if(engineChoice !== 'mymemory'){
+    try { const t = await lingva(text, src, tgt); engine = 'Google Translate (via Lingva)'; return t; }
+    catch(e){ if(engineChoice === 'lingva') throw new Error('Google (Lingva) could not be reached'); }
+  }
   engine = 'MyMemory'; return mymemory(text, src, tgt);
 }
 async function mymemory(text, src, tgt){
@@ -501,11 +510,16 @@ async function mymemory(text, src, tgt){
   addUsage(text.length);
   const u = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + MM[src] + '|' + MM[tgt] + (mail ? '&de=' + encodeURIComponent(mail) : '');
   const j = await (await fetch(u)).json();
+  const said = (j.responseData && j.responseData.translatedText) || '';
+  if(j.quotaFinished === true || /MYMEMORY WARNING/i.test(said + ' ' + (j.responseDetails || ''))){
+    const e = new Error((said || j.responseDetails || 'limit reached').slice(0, 140)); e.quota = true; throw e;
+  }
   if(+j.responseStatus === 200){
     const ms = Array.isArray(j.matches) ? j.matches.filter(m => m.translation) : [];
     const best = ms.sort((x, y) => y.match - x.match)[0];
     const txt = decode(best ? best.translation : j.responseData.translatedText);
     const score = best ? +best.match : +j.responseData.match;
+    if(!txt.trim()) throw new Error('empty reply from MyMemory');
     return (score < 0.7 ? '≈ ' : '') + txt;
   }
   const e = new Error(j.responseDetails || 'failed'); e.quota = +j.responseStatus === 429; throw e;
@@ -586,19 +600,20 @@ async function enrich(){
 
   async function doTrans(){
     if(src === tgt) return;
+    lines.forEach((l, i) => { if(tCache[i]) el(i, 't').textContent = tCache[i]; });
     setMsg('t', 'Translating…');
     const enc = new TextEncoder(), hg = new RegExp(HG), chunks = [];
     let cur = [], size = 0;
     const flush = () => { if(cur.length) chunks.push(cur); cur = []; size = 0; };
     lines.forEach((l, i) => {
-      if(tCache[i] != null) return;
+      if(tCache[i]) return;
       if(src !== 'ko' && hg.test(l.text)){ flush(); chunks.push([i]); return; }
       const n = enc.encode(l.text).length + 1;
       if(cur.length && size + n > 400) flush();
       cur.push(i); size += n;
     });
     flush();
-    let quota = false, failed = 0; const memo = {};
+    let quota = false, failed = 0, lastErr = ''; const memo = {}, todo = chunks.length;
     async function worker(){
       while(chunks.length && !quota){
         const ch = chunks.shift();
@@ -616,13 +631,13 @@ async function enrich(){
             tCache[i] = await (memo[k] || (memo[k] = translateLine(k, src, tgt)));
             el(i, 't').textContent = tCache[i];
           }
-        } catch(e){ if(e.quota) quota = true; else failed++; }
+        } catch(e){ lastErr = e.message || ''; if(e.quota) quota = true; else failed++; }
       }
     }
     await Promise.all([worker(), worker()]);
     if(id !== runId) return;
     store.set(tKey, tCache);
-    setMsg('t', quota ? 'Daily free translation limit reached. Add your email in Settings for a higher limit, or use the AI option below.' : failed ? 'Some lines could not be translated. The AI option below can fill them in.' : 'Translated with ' + engine + '.');
+    setMsg('t', quota ? 'MyMemory limit reached (' + lastErr + '). Pick another service below and tap Retranslate, or try later.' : failed ? 'Some lines could not be translated (' + lastErr + '). Try another service below, or the AI option.' : todo ? 'Translated with ' + engine + '.' : '');
   }
 
   await Promise.all([doRoman(), doTrans()]);
@@ -830,10 +845,14 @@ function hl(){
 function updateBig(){
   if($('#big').hidden) return;
   const i = active, g = (n, c) => { const e = document.querySelector('#L' + n + ' .' + c); return e ? e.textContent : ''; };
-  $('#bigO').textContent = i >= 0 && lines[i] ? lines[i].text : '';
+  const L = k => k >= 0 && lines[k] ? lines[k].text : '';
+  $('#bigP2').textContent = i >= 0 ? L(i - 2) : '';
+  $('#bigP1').textContent = i >= 0 ? L(i - 1) : '';
+  $('#bigO').textContent = i >= 0 ? L(i) : '';
   $('#bigR').textContent = i >= 0 && $('#showR').checked ? g(i, 'r') : '';
   $('#bigT').textContent = i >= 0 && $('#showT').checked ? g(i, 't') : '';
-  $('#bigN').textContent = lines[i + 1] ? lines[i + 1].text : '';
+  $('#bigN1').textContent = L(i + 1);
+  $('#bigN2').textContent = L(i + 2);
 }
 $('#singBtn').onclick = () => { $('#big').hidden = false; updateBig(); };
 $('#bigX').onclick = () => { $('#big').hidden = true; };
@@ -930,6 +949,13 @@ $('#rLset').onclick = () => { const t = nowTime(); if(t == null) say('Load the v
 $('#rApply').onclick = () => {
   if(applyRough(parseFloat($('#rF').value), parseFloat($('#rL').value), true)) say('Timing applied. Use the sync offset in Settings to fine-tune.');
   else say('Enter when the first and last lines start. The last must be later than the first.');
+};
+$('#retr').onclick = () => {
+  engineChoice = $('#engSel').value; lgDead = false; lgBase = 0; chunkMiss = 0;
+  if(!lines.length) return;
+  store.set('t3:' + songKey + ':' + songLang() + ':' + $('#tlang').value, {});
+  document.querySelectorAll('.line .t').forEach(e => { e.textContent = ''; });
+  enrich();
 };
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
