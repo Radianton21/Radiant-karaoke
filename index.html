@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14213d">
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Lyric Lingo</title>
@@ -55,7 +55,7 @@ summary{cursor:pointer;font-weight:600}
 .hide-r .r,.hide-t .t{display:none}
 .line .o{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .cp{background:transparent;color:var(--mut);border:1px solid var(--line);padding:5px 7px;line-height:0;flex:none}
-#ver{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);right:8px;z-index:20;font-size:12px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:1px 7px}
+#ver{float:right;margin-top:24px;font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:6px;padding:1px 7px}
 .cp svg{display:block}
 .r:empty,.t:empty{display:none}
 #recent{display:grid;gap:6px;margin-top:8px}
@@ -78,6 +78,14 @@ summary{cursor:pointer;font-weight:600}
 .wd .w{font:400 21px/1.3 Newsreader,Georgia,serif}.wd .rr{color:var(--acc);font-size:14px}.wd .mm{font-size:15px}.wd .sub{color:var(--mut);font-size:13px}
 .line .o{font-size:calc(21px * var(--fs,1))}.line .r,.line .t{font-size:calc(15px * var(--fs,1))}
 .line .t{cursor:text}mark.sv{background:none;color:inherit;border-bottom:2px solid var(--acc)}
+input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+#recentBox{background:none;border:0;padding:0;margin:4px 0}
+#recentBox summary{font-weight:400;font-size:14px;color:var(--mut)}
+#recent{gap:0;margin-top:4px}
+.rrow .res{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:6px 2px;font-size:14px;font-weight:400;color:var(--fg)}
+.rrow .x{border:0;background:none;color:var(--mut);padding:2px 8px;font-size:16px}
+#recent > button.ghost,#recentClear{border:0;background:none;padding:6px 2px;font-size:13px;font-weight:400;color:var(--mut);text-align:left}
+.line.lp{outline:2px dashed var(--acc);outline-offset:-2px}
 .rrow{display:flex;gap:6px}.rrow .res{display:block;flex:1;text-align:left;padding:6px 10px;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rrow .x{padding:4px 12px;font-size:18px;line-height:1}
 #ctl{display:flex;gap:6px;align-items:center;margin-top:6px}#ctl select,#ctl button{width:auto;padding:6px 9px;font-size:14px}
 #big{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
@@ -89,7 +97,7 @@ summary{cursor:pointer;font-weight:600}
 </head>
 <body>
 <main>
-<span id="ver" title="App version">v13</span>
+<span id="ver" title="App version">v17</span>
 <h1>Lyric Lingo</h1>
 <nav id="tabs"><button class="tab" id="tabS" aria-selected="true">Songs</button><button class="tab" id="tabD" aria-selected="false">Dictionary</button>
 <span id="themes"><button class="dot" data-t="blue" style="background:#2b59c3" aria-label="Blue theme" aria-pressed="true"></button><button class="dot" data-t="green" style="background:#1f7a4d" aria-label="Green theme" aria-pressed="false"></button><button class="dot" data-t="warm" style="background:#e0773a" aria-label="Warm theme" aria-pressed="false"></button></span></nav>
@@ -100,7 +108,7 @@ summary{cursor:pointer;font-weight:600}
 </div>
 <div id="status" role="status"></div>
 <div id="results"></div>
-<details id="recentBox" open style="display:none"><summary>Recent songs</summary><div id="recent"></div><p><button class="ghost" id="recentClear" type="button">Clear list</button></p></details>
+<details id="recentBox" style="display:none"><summary>Recent songs</summary><div id="recent"></div><p><button class="ghost" id="recentClear" type="button">Clear list</button></p></details>
 
   <details>
   <summary>No lyrics found? Paste your own</summary>
@@ -113,7 +121,6 @@ summary{cursor:pointer;font-weight:600}
   <p class="note" id="sNote"></p>
   <div class="links">
     <a id="lnkYT" target="_blank" rel="noopener">Find on YouTube</a>
-    <a id="lnkSP" target="_blank" rel="noopener">Find on Spotify</a>
   </div>
   <div class="row">
     <input id="yturl" type="text" placeholder="Paste YouTube link here" aria-label="YouTube link" inputmode="url">
@@ -137,6 +144,7 @@ summary{cursor:pointer;font-weight:600}
       <label><input type="checkbox" id="showR" checked> Pinyin / romaji</label>
       <label><input type="checkbox" id="showT" checked> Translation</label>
       <label><input type="checkbox" id="auto" checked> Auto-scroll</label>
+      <label><input type="checkbox" id="simp" checked> Simplified Chinese</label>
     </div>
     <label for="off" style="font-size:14px;color:var(--mut)">Sync offset: <b id="offv">0.0</b> s (raise it if lyrics appear late)</label>
     <input id="off" type="range" min="-5" max="5" step="0.1" value="0" style="width:100%">
@@ -157,6 +165,13 @@ summary{cursor:pointer;font-weight:600}
     <p><button class="ghost" id="aiApply">Apply answer</button></p>
   </details>
 
+  <details id="roughBox" open hidden>
+    <summary>Rough timing (this version has no timing)</summary>
+    <p class="note">Play the song. When the first line starts, tap Set now. Do the same when the last line starts, then tap Apply. The lines in between are spread by their length. Fine-tune with the sync offset in Settings.</p>
+    <div class="row"><input id="rF" type="number" step="0.1" min="0" placeholder="First line starts (seconds)" aria-label="First line start in seconds"><button class="ghost" id="rFset" type="button">Set now</button></div>
+    <div class="row" style="margin-top:6px"><input id="rL" type="number" step="0.1" min="0" placeholder="Last line starts (seconds)" aria-label="Last line start in seconds"><button class="ghost" id="rLset" type="button">Set now</button></div>
+    <p><button id="rApply" type="button">Apply timing</button></p>
+  </details>
   <p class="note" id="lstat" role="status"></p>
   <div id="lyrics"></div>
 </section>
@@ -185,6 +200,7 @@ summary{cursor:pointer;font-weight:600}
 
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.19.6/dist/index.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/wanakana@5.3.1/wanakana.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/opencc-js@1.4.2/dist/umd/t2cn.js"></script>
 <script type="text/plain" id="jaWorker">
 let tk = null, q = [];
 const _open = XMLHttpRequest.prototype.open;
@@ -225,7 +241,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 };
-let lines = [], songKey = '', player = null, active = -1, runId = 0, lastHits = [], loopIdx = -1;
+let lines = [], songKey = '', player = null, active = -1, runId = 0, lastHits = [], loopIdx = -1, curId = null;
 const MM = {zh:'zh-CN', ja:'ja', ko:'ko', he:'he', it:'it', en:'en', ru:'ru', es:'es', fr:'fr', de:'de'};
 
 const SV = 'viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
@@ -299,14 +315,17 @@ function openSong(h){
   $('#sTitle').textContent = h.trackName; $('#sBy').textContent = h.artistName;
   const k = encodeURIComponent(h.artistName + ' ' + h.trackName);
   $('#lnkYT').href = 'https://www.youtube.com/results?search_query=' + k + '+lyrics';
-  $('#lnkSP').href = 'https://open.spotify.com/search/' + k;
   $('#song').style.display = 'block';
   $('#sNote').textContent = h.duration ? 'Lyrics are timed for a version about ' + mmss(h.duration) + ' long. Pick a YouTube video of similar length.' : '';
   songKey = 'lrclib:' + h.id;
   const so = +store.get('off:' + songKey) || 0; $('#off').value = so; $('#offv').textContent = so.toFixed(1); loopIdx = -1; $('#loop').value = '0';
   const arr = h.syncedLyrics ? parseLRC(h.syncedLyrics) : parsePlain(h.plainLyrics);
   altReadings(arr, h); loadLines(arr);
-  say(h.syncedLyrics ? 'Paste a YouTube link below and press Play.' : 'No timing for this song, so lyrics will not scroll with the music.');
+  const rec = (store.get('recent') || []).find(x => x.id === h.id), yt = rec && rec.yt;
+  curId = h.id; $('#yturl').value = yt || '';
+  if(yt) playVideo();
+  else { if(player && player.stopVideo) player.stopVideo(); $('#ytwrap').style.display = 'none'; }
+  say(yt ? '' : (h.syncedLyrics ? 'Paste a YouTube link below and press Play.' : 'No timing for this song, so lyrics will not scroll with the music.'));
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
@@ -504,7 +523,18 @@ async function translateLine(text, src, tgt){
 }
 
 /* ---------- Render + enrich ---------- */
-function loadLines(arr){ lines = arr; active = -1; render(); enrich(); }
+let zhConv = null;
+function simp(){
+  const on = $('#simp').checked && window.OpenCC && songLang() === 'zh';
+  if(!zhConv && window.OpenCC) zhConv = window.OpenCC.Converter({from: 't', to: 'cn'});
+  lines.forEach(l => { if(l.raw == null) l.raw = l.text; l.text = on ? zhConv(l.raw) : l.raw; });
+}
+let roughOn = false;
+function loadLines(arr){
+  lines = arr; active = -1; roughOn = arr.length > 0 && arr[0].t == null;
+  if(roughOn){ const r = store.get('rough:' + songKey); if(r) applyRough(r.F, r.L, false); }
+  showRough(); simp(); render(); enrich();
+}
 
 function render(){
   const box = $('#lyrics'); box.innerHTML = '';
@@ -522,10 +552,10 @@ function render(){
       te.textContent = v.trim();
       const k = 't3:' + songKey + ':' + songLang() + ':' + $('#tlang').value, c = store.get(k) || {}; c[i] = v.trim(); store.set(k, c);
     };
-    d.onclick = () => { if(+$('#loop').value) loopIdx = i; if(player && player.seekTo && l.t != null) player.seekTo(Math.max(0, l.t - off()), true); };
+    d.onclick = () => { if(+$('#loop').value){ loopIdx = i; markLoop(); } if(player && player.seekTo && l.t != null) player.seekTo(Math.max(0, l.t - off()), true); };
     box.appendChild(d);
   });
-  applyToggles(); hl();
+  applyToggles(); hl(); markLoop();
 }
 function applyToggles(){
   const b = $('#lyrics');
@@ -613,6 +643,7 @@ async function playVideo(){
   const id = ytId($('#yturl').value.trim());
   if(!id){ say('That does not look like a YouTube link.'); return; }
   say(''); $('#ytwrap').style.display = 'block';
+  if(curId != null){ const list = store.get('recent') || [], r = list.find(x => x.id === curId); if(r){ r.yt = $('#yturl').value.trim(); store.set('recent', list); } }
   await loadYT();
   if(player && player.loadVideoById){ player.loadVideoById(id); return; }
   player = new YT.Player('yt', {videoId: id, playerVars: {playsinline: 1, rel: 0}, events: {onReady: e => { e.target.setPlaybackRate(+$('#rate').value); e.target.playVideo(); }}});
@@ -630,11 +661,6 @@ setInterval(() => {
   if(!player || !player.getCurrentTime || !lines.length || lines[0].t == null) return;
   if(player.getPlayerState && player.getPlayerState() !== 1) return;
   const now = player.getCurrentTime() + off();
-  const LP = +$('#loop').value;
-  if(LP && loopIdx >= 0 && lines[loopIdx]){
-    const last = Math.min(lines.length - 1, loopIdx + LP - 1), end = lines[last + 1] ? lines[last + 1].t : lines[last].t + 6;
-    if(now >= end - 0.15){ player.seekTo(Math.max(0, lines[loopIdx].t - off()), true); return; }
-  }
   let idx = -1;
   for(let i = 0; i < lines.length; i++){ if(lines[i].t <= now) idx = i; else break; }
   if(idx === active) return;
@@ -657,7 +683,7 @@ $('#usePaste').onclick = () => {
   const synced = parseLRC(t);
   songKey = 'manual:' + t.length + ':' + t.slice(0, 20);
   if(!$('#sTitle').textContent) $('#sTitle').textContent = 'Pasted lyrics';
-  $('#sNote').textContent = '';
+  $('#sNote').textContent = ''; curId = null; $('#yturl').value = '';
   $('#song').style.display = 'block';
   loadLines(synced.length > 3 ? synced : parsePlain(t));
 };
@@ -689,7 +715,8 @@ $('#aiApply').onclick = applyAI;
 /* ---------- Recent songs + translation usage ---------- */
 function addRecent(h){
   const list = (store.get('recent') || []).filter(x => x.id !== h.id);
-  list.unshift({id: h.id, trackName: h.trackName, artistName: h.artistName, duration: h.duration, syncedLyrics: h.syncedLyrics, plainLyrics: h.syncedLyrics ? '' : h.plainLyrics});
+  const old = (store.get('recent') || []).find(x => x.id === h.id);
+  list.unshift({id: h.id, trackName: h.trackName, artistName: h.artistName, duration: h.duration, syncedLyrics: h.syncedLyrics, plainLyrics: h.syncedLyrics ? '' : h.plainLyrics, yt: h.yt || (old && old.yt) || ''});
   store.set('recent', list.slice(0, 15)); showRecent();
 }
 let recentAll = false;
@@ -812,7 +839,29 @@ $('#singBtn').onclick = () => { $('#big').hidden = false; updateBig(); };
 $('#bigX').onclick = () => { $('#big').hidden = true; };
 $('#bigBody').onclick = () => { if(player && player.getPlayerState) player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); };
 $('#rate').onchange = () => { if(player && player.setPlaybackRate) player.setPlaybackRate(+$('#rate').value); };
-$('#loop').onchange = () => { loopIdx = +$('#loop').value ? Math.max(active, 0) : -1; };
+let lastSeek = 0;
+function markLoop(){
+  const LP = +$('#loop').value;
+  document.querySelectorAll('.line.lp').forEach(e => e.classList.remove('lp'));
+  if(LP && loopIdx >= 0) for(let k = loopIdx; k < Math.min(lines.length, loopIdx + LP); k++){ const e = document.getElementById('L' + k); if(e) e.classList.add('lp'); }
+}
+function curIdx(){
+  if(active >= 0) return active;
+  if(!player || !player.getCurrentTime) return 0;
+  const now = player.getCurrentTime() + off(); let k = 0;
+  lines.forEach((l, i) => { if(l.t != null && l.t <= now) k = i; });
+  return k;
+}
+$('#loop').onchange = () => { loopIdx = +$('#loop').value ? curIdx() : -1; markLoop(); };
+setInterval(() => {
+  const LP = +$('#loop').value;
+  if(!LP || loopIdx < 0 || !player || !player.getCurrentTime || !lines[loopIdx] || lines[loopIdx].t == null) return;
+  if(player.getPlayerState && player.getPlayerState() !== 1) return;
+  const last = Math.min(lines.length - 1, loopIdx + LP - 1), end = lines[last + 1] ? lines[last + 1].t : lines[last].t + 6;
+  if(player.getCurrentTime() + off() >= end - 0.1 && Date.now() - lastSeek > 500){ lastSeek = Date.now(); player.seekTo(Math.max(0, lines[loopIdx].t - off() - 0.1), true); }
+}, 80);
+$('#simp').checked = store.get('simp') !== false;
+$('#simp').onchange = () => { store.set('simp', $('#simp').checked); if(lines.length){ simp(); render(); enrich(); } };
 $('#ytpaste').onclick = async () => {
   try { $('#yturl').value = await navigator.clipboard.readText(); playVideo(); }
   catch(e){ say('Could not read the clipboard. Long-press the link field and choose Paste.'); }
@@ -860,6 +909,27 @@ $('#expFile').onclick = () => {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([t], {type: 'text/plain'})); a.download = 'lyric-lingo-words-' + new Date().toISOString().slice(0, 10) + '.txt';
   document.body.appendChild(a); a.click(); a.remove(); $('#expMsg').textContent = 'File downloaded. Open it, copy everything, and paste into Quizlet Import.';
+};
+/* ---------- Rough timing for lyrics without timestamps ---------- */
+function applyRough(F, L, save){
+  const n = lines.length;
+  if(n < 2 || !(L > F) || !(F >= 0)) return false;
+  const w = lines.slice(0, n - 1).map(l => Math.max(6, [...l.text].length)), tot = w.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  lines.forEach((l, i) => { l.t = i === n - 1 ? L : F + (L - F) * acc / tot; if(i < n - 1) acc += w[i]; });
+  active = -1; if(save) store.set('rough:' + songKey, {F, L});
+  return true;
+}
+function showRough(){
+  $('#roughBox').hidden = !roughOn;
+  if(roughOn){ const r = store.get('rough:' + songKey); $('#rF').value = r ? r.F : ''; $('#rL').value = r ? r.L : ''; }
+}
+function nowTime(){ return player && player.getCurrentTime ? Math.round((player.getCurrentTime() + off()) * 10) / 10 : null; }
+$('#rFset').onclick = () => { const t = nowTime(); if(t == null) say('Load the video first, then play it.'); else $('#rF').value = t; };
+$('#rLset').onclick = () => { const t = nowTime(); if(t == null) say('Load the video first, then play it.'); else $('#rL').value = t; };
+$('#rApply').onclick = () => {
+  if(applyRough(parseFloat($('#rF').value), parseFloat($('#rL').value), true)) say('Timing applied. Use the sync offset in Settings to fine-tune.');
+  else say('Enter when the first and last lines start. The last must be later than the first.');
 };
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
