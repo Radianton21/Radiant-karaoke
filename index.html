@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Lyric Lingo</title>
+<title>Radiant Karaoke</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
@@ -94,7 +94,11 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
 #big{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
 #bigX{align-self:flex-end}#bigBody{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px;text-align:center}
 #bigO{font:600 clamp(28px,8vw,52px)/1.25 Newsreader,Georgia,serif}#bigR{color:var(--acc);font-size:clamp(17px,4.5vw,26px)}
-#bigT{color:var(--mut);font-style:italic;font-size:clamp(16px,4vw,24px)}#bigCur{display:flex;flex-direction:column;gap:10px;margin:14px 0}
+#bigT{color:var(--mut);font-style:italic;font-size:clamp(16px,4vw,24px)}#bigCur{display:flex;flex-direction:column;gap:10px;margin:clamp(28px,8vh,72px) 0}
+#bigTop{display:flex;justify-content:space-between;align-items:center}
+#bigLoop{width:auto;background:none;border:0;color:var(--mut);font-size:14px;padding:6px 4px}
+#bigX{border:0;color:var(--mut)}
+#bigHint{text-align:center;font-size:12px;color:var(--mut);opacity:.55;margin:0}
 .bn{color:var(--fg);font:400 clamp(17px,4.6vw,26px)/1.3 Newsreader,Georgia,serif}
 #bigP2{opacity:.22}#bigP1{opacity:.42}#bigN1{opacity:.6}#bigN2{opacity:.32}.bn:empty{display:none}
 .note{color:var(--mut);font-size:14px;margin:4px 0 8px}
@@ -102,8 +106,8 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
 </head>
 <body>
 <main>
-<span id="ver" title="App version">v19</span>
-<h1>Lyric Lingo</h1>
+<span id="ver" title="App version">v20</span>
+<h1>Radiant Karaoke</h1>
 <nav id="tabs"><button class="tab" id="tabS" aria-selected="true">Songs</button><button class="tab" id="tabD" aria-selected="false">Dictionary</button>
 <span id="themes"><button class="dot" data-t="blue" style="background:#2b59c3" aria-label="Blue theme" aria-pressed="true"></button><button class="dot" data-t="green" style="background:#1f7a4d" aria-label="Green theme" aria-pressed="false"></button><button class="dot" data-t="warm" style="background:#e0773a" aria-label="Warm theme" aria-pressed="false"></button></span></nav>
 <div id="songsView">
@@ -135,7 +139,8 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
   <div id="ytwrap"><div id="ytbox"><div id="yt"></div></div>
   <div id="ctl"><select id="rate" aria-label="Speed"><option value="1">1x</option><option value="0.75">0.75x</option><option value="0.5">0.5x</option></select>
   <select id="loop" aria-label="Loop"><option value="0">Loop: off</option><option value="1">Loop 1 line</option><option value="2">Loop 2 lines</option><option value="3">Loop 3 lines</option></select>
-  <button class="ghost" id="singBtn" type="button">Sing view</button></div></div>
+  <button class="ghost" id="singBtn" type="button">Sing view</button>
+  <button class="ghost" id="autoBtn" type="button" aria-pressed="true">Scroll: on</button></div></div>
 
   <details>
     <summary>Settings</summary>
@@ -192,8 +197,9 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
   </div>
   <div id="dictList"></div>
 </section>
-<div id="big" hidden><button class="ghost" id="bigX" type="button">Close</button>
-  <div id="bigBody"><div class="bn" id="bigP2"></div><div class="bn" id="bigP1"></div><div id="bigCur"><div id="bigO"></div><div id="bigR"></div><div id="bigT"></div></div><div class="bn" id="bigN1"></div><div class="bn" id="bigN2"></div></div></div>
+<div id="big" hidden><div id="bigTop"><select id="bigLoop" aria-label="Loop"><option value="0">Loop: off</option><option value="1">Loop 1 line</option><option value="2">Loop 2 lines</option><option value="3">Loop 3 lines</option></select><button class="ghost" id="bigX" type="button">Close</button></div>
+  <div id="bigBody"><div class="bn" id="bigP2"></div><div class="bn" id="bigP1"></div><div id="bigCur"><div id="bigO"></div><div id="bigR"></div><div id="bigT"></div></div><div class="bn" id="bigN1"></div><div class="bn" id="bigN2"></div></div>
+  <p id="bigHint">Tap the lyrics to pause or resume</p></div>
 <button id="saveSel" type="button" hidden>Save word</button>
 <div id="sheet" hidden role="dialog" aria-label="Save word">
   <label>Word<input id="sw" type="text"></label>
@@ -854,7 +860,8 @@ function updateBig(){
   $('#bigN1').textContent = L(i + 1);
   $('#bigN2').textContent = L(i + 2);
 }
-$('#singBtn').onclick = () => { $('#big').hidden = false; updateBig(); };
+$('#singBtn').onclick = () => { $('#bigLoop').value = $('#loop').value; $('#big').hidden = false; updateBig(); };
+$('#bigLoop').onchange = () => { $('#loop').value = $('#bigLoop').value; $('#loop').onchange(); };
 $('#bigX').onclick = () => { $('#big').hidden = true; };
 $('#bigBody').onclick = () => { if(player && player.getPlayerState) player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo(); };
 $('#rate').onchange = () => { if(player && player.setPlaybackRate) player.setPlaybackRate(+$('#rate').value); };
@@ -893,14 +900,14 @@ $('#bkSave').onclick = () => {
   const data = {};
   try { for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); data[k] = localStorage.getItem(k); } } catch(e){}
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify({app: 'lyric-lingo', data})], {type: 'application/json'}));
-  a.download = 'lyric-lingo-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({app: 'radiant-karaoke', data})], {type: 'application/json'}));
+  a.download = 'radiant-karaoke-backup-' + new Date().toISOString().slice(0, 10) + '.json';
   document.body.appendChild(a); a.click(); a.remove(); say('Backup downloaded.');
 };
 $('#bkLoad').onclick = () => $('#bkFile').click();
 $('#bkFile').onchange = async e => {
   try {
-    const j = JSON.parse(await e.target.files[0].text()); if(j.app !== 'lyric-lingo') throw new Error('not a backup');
+    const j = JSON.parse(await e.target.files[0].text()); if(j.app !== 'lyric-lingo' && j.app !== 'radiant-karaoke') throw new Error('not a backup');
     for(const k in j.data){
       const v = j.data[k], cur = localStorage.getItem(k);
       if(k === 'dict' || k === 'recent'){
@@ -926,7 +933,7 @@ $('#expCopy').onclick = async () => {
 $('#expFile').onclick = () => {
   const t = expText(); if(!t){ $('#expMsg').textContent = 'Nothing to export yet.'; return; }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([t], {type: 'text/plain'})); a.download = 'lyric-lingo-words-' + new Date().toISOString().slice(0, 10) + '.txt';
+  a.href = URL.createObjectURL(new Blob([t], {type: 'text/plain'})); a.download = 'radiant-karaoke-words-' + new Date().toISOString().slice(0, 10) + '.txt';
   document.body.appendChild(a); a.click(); a.remove(); $('#expMsg').textContent = 'File downloaded. Open it, copy everything, and paste into Quizlet Import.';
 };
 /* ---------- Rough timing for lyrics without timestamps ---------- */
@@ -957,6 +964,12 @@ $('#retr').onclick = () => {
   document.querySelectorAll('.line .t').forEach(e => { e.textContent = ''; });
   enrich();
 };
+function syncAuto(){
+  const on = $('#auto').checked, b = $('#autoBtn');
+  b.textContent = on ? 'Scroll: on' : 'Scroll: off'; b.setAttribute('aria-pressed', String(on)); b.style.opacity = on ? '' : '.55';
+}
+$('#autoBtn').onclick = () => { $('#auto').checked = !$('#auto').checked; syncAuto(); };
+$('#auto').onchange = syncAuto; syncAuto();
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
