@@ -82,6 +82,8 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
 #pasteBox{background:none;border:0;padding:0;margin:4px 0}
 #pasteBox summary{font-weight:400;font-size:14px;color:var(--mut)}
 #trTools{display:flex;gap:6px;align-items:center;margin:6px 0}#trTools select{width:auto;padding:6px 9px;font-size:14px}#trTools button{padding:6px 12px;font-size:14px}
+#results details.vers{margin:0;padding:6px 10px}
+#results .vers .res{margin-top:6px}
 #recentBox{background:none;border:0;padding:0;margin:4px 0}
 #recentBox summary{font-weight:400;font-size:14px;color:var(--mut)}
 #recent{gap:0;margin-top:4px}
@@ -106,7 +108,7 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
 </head>
 <body>
 <main>
-<span id="ver" title="App version">v20</span>
+<span id="ver" title="App version">v21</span>
 <h1>Radiant Karaoke</h1>
 <nav id="tabs"><button class="tab" id="tabS" aria-selected="true">Songs</button><button class="tab" id="tabD" aria-selected="false">Dictionary</button>
 <span id="themes"><button class="dot" data-t="blue" style="background:#2b59c3" aria-label="Blue theme" aria-pressed="true"></button><button class="dot" data-t="green" style="background:#1f7a4d" aria-label="Green theme" aria-pressed="false"></button><button class="dot" data-t="warm" style="background:#e0773a" aria-label="Warm theme" aria-pressed="false"></button></span></nav>
@@ -192,7 +194,7 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
   <p class="note" id="dictEmpty">Select a word or phrase in the lyrics, then tap Save word.</p>
   <div id="dictTools" hidden>
     <div class="row"><select id="expLang" aria-label="Language to export"></select><button class="ghost" id="expCopy" type="button">Copy for Quizlet</button><button class="ghost" id="expFile" type="button">Download</button></div>
-    <label class="note" style="display:block"><input type="checkbox" id="expCtx"> Add the example line to the definition</label>
+    <label class="note" style="display:block"><input type="checkbox" id="expCtx"> Add the example line to the exported definition (saved words always keep their example)</label>
     <p class="note" id="expMsg" role="status"></p>
   </div>
   <div id="dictList"></div>
@@ -282,6 +284,36 @@ async function getJSON(url){
   }
   throw err;
 }
+let resShown = 15;
+function resBtn(h, label){
+  const b = document.createElement('button'); b.className = 'res';
+  const l = document.createElement('span'); l.textContent = label || h.trackName;
+  const sm = document.createElement('small'); sm.textContent = ' ' + (label ? '' : h.artistName + ' · ') + mmss(h.duration); l.appendChild(sm);
+  const t = document.createElement('span'); t.className = 'tag'; t.textContent = h.syncedLyrics ? 'synced' : 'text only';
+  b.append(l, t); b.onclick = () => openSong(h); return b;
+}
+function renderResults(){
+  const box = $('#results'); box.innerHTML = '';
+  const groups = new Map();
+  lastHits.forEach(h => {
+    const k = (h.trackName + '|' + h.artistName).toLowerCase().replace(/\s+/g, ' ').trim();
+    if(!groups.has(k)) groups.set(k, []); groups.get(k).push(h);
+  });
+  const all = [...groups.values()];
+  all.slice(0, resShown).forEach(vs => {
+    vs.sort((a, b) => (b.syncedLyrics ? 1 : 0) - (a.syncedLyrics ? 1 : 0));
+    if(vs.length === 1){ box.appendChild(resBtn(vs[0])); return; }
+    const d = document.createElement('details'); d.className = 'vers';
+    const sm = document.createElement('summary'); sm.textContent = vs[0].trackName + ' · ' + vs[0].artistName + ' (' + vs.length + ' versions)'; d.appendChild(sm);
+    vs.forEach((h, i) => d.appendChild(resBtn(h, 'Version ' + (i + 1))));
+    box.appendChild(d);
+  });
+  if(all.length > resShown){
+    const m = document.createElement('button'); m.className = 'ghost';
+    m.textContent = 'Show ' + Math.min(15, all.length - resShown) + ' more (' + (all.length - resShown) + ' left)';
+    m.onclick = () => { resShown += 15; renderResults(); }; box.appendChild(m);
+  }
+}
 async function search(){
   const q = $('#q').value.trim(); if(!q) return;
   say('Searching…'); $('#results').innerHTML = '';
@@ -289,19 +321,9 @@ async function search(){
     const data = await getJSON('https://lrclib.net/api/search?q=' + encodeURIComponent(q));
     if(!Array.isArray(data)) throw new Error('Unexpected reply from lyrics service');
     lastHits = data.filter(d => d.syncedLyrics || d.plainLyrics);
-    const hits = lastHits.slice(0, 12);
-    if(!hits.length){ say('No lyrics found. Try fewer words, or paste lyrics below once you open a song.'); return; }
-    say('Pick a version. Songs tagged "synced" work like karaoke.');
-    hits.forEach(h => {
-      const b = document.createElement('button'); b.className = 'res';
-      const l = document.createElement('span'); l.textContent = h.trackName;
-      const sm = document.createElement('small'); sm.textContent = ' ' + h.artistName + ' · ' + mmss(h.duration);
-      l.appendChild(sm);
-      const t = document.createElement('span'); t.className = 'tag'; t.textContent = h.syncedLyrics ? 'synced' : 'text only';
-      b.append(l, t);
-      b.onclick = () => openSong(h);
-      $('#results').appendChild(b);
-    });
+    if(!lastHits.length){ say('No lyrics found. Try fewer words, or paste lyrics below once you open a song.'); return; }
+    resShown = 15; renderResults();
+    say('Pick a song. Songs with several versions open into a list; synced ones work like karaoke.');
   } catch(e){
     if(/status 5/.test(e.message || '')){ say('The lyrics service is busy right now. Try again in a minute. Recent songs and pasted lyrics still work.'); return; }
     const hosted = location.protocol === 'https:' && !/claude|anthropic/.test(location.hostname);
@@ -898,7 +920,7 @@ $('#fsMinus').onclick = () => setFs(fs - 0.1); $('#fsPlus').onclick = () => setF
 
 $('#bkSave').onclick = () => {
   const data = {};
-  try { for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); data[k] = localStorage.getItem(k); } } catch(e){}
+  try { for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k === 'mail' || k.startsWith('use:')) continue; data[k] = localStorage.getItem(k); } } catch(e){}
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify({app: 'radiant-karaoke', data})], {type: 'application/json'}));
   a.download = 'radiant-karaoke-backup-' + new Date().toISOString().slice(0, 10) + '.json';
