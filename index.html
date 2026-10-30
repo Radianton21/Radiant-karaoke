@@ -90,6 +90,8 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
 .rrow .res{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:6px 2px;font-size:14px;font-weight:400;color:var(--fg)}
 .rrow .x{border:0;background:none;color:var(--mut);padding:2px 8px;font-size:16px}
 #recent > button.ghost,#recentClear{border:0;background:none;padding:6px 2px;font-size:13px;font-weight:400;color:var(--mut);text-align:left}
+.line .tp{color:var(--acc);font-size:calc(14px * var(--fs,1));opacity:.85;margin-top:1px}.line .tp:empty{display:none}
+#bigTP{color:var(--acc);opacity:.8;font-size:clamp(14px,3.6vw,20px)}
 .line.lp{outline:2px dashed var(--acc);outline-offset:-2px}
 .rrow{display:flex;gap:6px}.rrow .res{display:block;flex:1;text-align:left;padding:6px 10px;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rrow .x{padding:4px 12px;font-size:18px;line-height:1}
 #ctl{display:flex;gap:6px;align-items:center;margin-top:6px}#ctl select,#ctl button{width:auto;padding:6px 9px;font-size:14px}
@@ -108,7 +110,7 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
 </head>
 <body>
 <main>
-<span id="ver" title="App version">v21</span>
+<span id="ver" title="App version">v22</span>
 <h1>Radiant Karaoke</h1>
 <nav id="tabs"><button class="tab" id="tabS" aria-selected="true">Songs</button><button class="tab" id="tabD" aria-selected="false">Dictionary</button>
 <span id="themes"><button class="dot" data-t="blue" style="background:#2b59c3" aria-label="Blue theme" aria-pressed="true"></button><button class="dot" data-t="green" style="background:#1f7a4d" aria-label="Green theme" aria-pressed="false"></button><button class="dot" data-t="warm" style="background:#e0773a" aria-label="Warm theme" aria-pressed="false"></button></span></nav>
@@ -150,13 +152,14 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
       <div><label for="slang">Song language</label>
         <select id="slang"><option value="auto">Auto-detect</option><option value="en">English</option><option value="it">Italian</option><option value="zh">Chinese</option><option value="ja">Japanese</option><option value="ko">Korean</option><option value="he">Hebrew</option></select></div>
       <div><label for="tlang">Translate to</label>
-        <select id="tlang"><option value="en">English</option><option value="ru">Russian</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select></div>
+        <select id="tlang"><option value="en">English</option><option value="ru">Russian</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="zh">Chinese (simplified)</option></select></div>
     </div>
     <div class="chk">
       <label><input type="checkbox" id="showR" checked> Pinyin / romaji</label>
       <label><input type="checkbox" id="showT" checked> Translation</label>
       <label><input type="checkbox" id="auto" checked> Auto-scroll</label>
       <label><input type="checkbox" id="simp" checked> Simplified Chinese</label>
+      <label><input type="checkbox" id="pyT"> Pinyin under Chinese translation</label>
     </div>
     <label for="off" style="font-size:14px;color:var(--mut)">Sync offset: <b id="offv">0.0</b> s (raise it if lyrics appear late)</label>
     <input id="off" type="range" min="-5" max="5" step="0.1" value="0" style="width:100%">
@@ -200,7 +203,7 @@ input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);bor
   <div id="dictList"></div>
 </section>
 <div id="big" hidden><div id="bigTop"><select id="bigLoop" aria-label="Loop"><option value="0">Loop: off</option><option value="1">Loop 1 line</option><option value="2">Loop 2 lines</option><option value="3">Loop 3 lines</option></select><button class="ghost" id="bigX" type="button">Close</button></div>
-  <div id="bigBody"><div class="bn" id="bigP2"></div><div class="bn" id="bigP1"></div><div id="bigCur"><div id="bigO"></div><div id="bigR"></div><div id="bigT"></div></div><div class="bn" id="bigN1"></div><div class="bn" id="bigN2"></div></div>
+  <div id="bigBody"><div class="bn" id="bigP2"></div><div class="bn" id="bigP1"></div><div id="bigCur"><div id="bigO"></div><div id="bigR"></div><div id="bigT"></div><div id="bigTP"></div></div><div class="bn" id="bigN1"></div><div class="bn" id="bigN2"></div></div>
   <p id="bigHint">Tap the lyrics to pause or resume</p></div>
 <button id="saveSel" type="button" hidden>Save word</button>
 <div id="sheet" hidden role="dialog" aria-label="Save word">
@@ -526,7 +529,13 @@ async function lingva(text, src, tgt){
   }
   lgDead = true; throw new Error('lingva unavailable');
 }
-async function translate(text, src, tgt){
+async function translate(text, src, tgt){ const t = await translate0(text, src, tgt); return tgt === 'zh' ? toSimp(t) : t; }
+function toSimp(t){
+  if(!$('#simp').checked || !window.OpenCC) return t;
+  if(!zhConv) zhConv = window.OpenCC.Converter({from: 't', to: 'cn'});
+  return zhConv(t);
+}
+async function translate0(text, src, tgt){
   if(engineChoice !== 'mymemory'){
     try { const t = await lingva(text, src, tgt); engine = 'Google Translate (via Lingva)'; return t; }
     catch(e){ if(engineChoice === 'lingva') throw new Error('Google (Lingva) could not be reached'); }
@@ -582,7 +591,7 @@ function render(){
   const box = $('#lyrics'); box.innerHTML = '';
   lines.forEach((l, i) => {
     const d = document.createElement('div'); d.className = 'line'; d.id = 'L' + i;
-    ['o','r','t'].forEach(c => { const e = document.createElement('div'); e.className = c; d.appendChild(e); });
+    ['o','r','t','tp'].forEach(c => { const e = document.createElement('div'); e.className = c; d.appendChild(e); });
     const tx = document.createElement('span'); tx.textContent = l.text;
     const cb = document.createElement('button'); cb.className = 'cp'; cb.innerHTML = IC_COPY; cb.title = 'Copy this line'; cb.setAttribute('aria-label', 'Copy this line');
     cb.onclick = async ev => { ev.stopPropagation(); const ok = await copyText(l.text); cb.innerHTML = ok ? IC_OK : '!'; setTimeout(() => cb.innerHTML = IC_COPY, 1200); };
@@ -591,7 +600,7 @@ function render(){
     te.onclick = ev => {
       if(!te.textContent) return; ev.stopPropagation();
       const v = prompt('Edit translation', te.textContent); if(v === null) return;
-      te.textContent = v.trim();
+      te.textContent = v.trim(); fillTP();
       const k = 't3:' + songKey + ':' + songLang() + ':' + $('#tlang').value, c = store.get(k) || {}; c[i] = v.trim(); store.set(k, c);
     };
     d.onclick = () => { if(+$('#loop').value){ loopIdx = i; markLoop(); } if(player && player.seekTo && l.t != null) player.seekTo(Math.max(0, l.t - off()), true); };
@@ -629,6 +638,7 @@ async function enrich(){
   async function doTrans(){
     if(src === tgt) return;
     lines.forEach((l, i) => { if(tCache[i]) el(i, 't').textContent = tCache[i]; });
+    fillTP();
     setMsg('t', 'Translating…');
     const enc = new TextEncoder(), hg = new RegExp(HG), chunks = [];
     let cur = [], size = 0;
@@ -659,12 +669,13 @@ async function enrich(){
             tCache[i] = await (memo[k] || (memo[k] = translateLine(k, src, tgt)));
             el(i, 't').textContent = tCache[i];
           }
+          fillTP();
         } catch(e){ lastErr = e.message || ''; if(e.quota) quota = true; else failed++; }
       }
     }
     await Promise.all([worker(), worker()]);
     if(id !== runId) return;
-    store.set(tKey, tCache);
+    store.set(tKey, tCache); fillTP();
     setMsg('t', quota ? 'MyMemory limit reached (' + lastErr + '). Pick another service below and tap Retranslate, or try later.' : failed ? 'Some lines could not be translated (' + lastErr + '). Try another service below, or the AI option.' : todo ? 'Translated with ' + engine + '.' : '');
   }
 
@@ -879,6 +890,7 @@ function updateBig(){
   $('#bigO').textContent = i >= 0 ? L(i) : '';
   $('#bigR').textContent = i >= 0 && $('#showR').checked ? g(i, 'r') : '';
   $('#bigT').textContent = i >= 0 && $('#showT').checked ? g(i, 't') : '';
+  $('#bigTP').textContent = i >= 0 && $('#showT').checked ? g(i, 'tp') : '';
   $('#bigN1').textContent = L(i + 1);
   $('#bigN2').textContent = L(i + 2);
 }
@@ -992,6 +1004,15 @@ function syncAuto(){
 }
 $('#autoBtn').onclick = () => { $('#auto').checked = !$('#auto').checked; syncAuto(); };
 $('#auto').onchange = syncAuto; syncAuto();
+function fillTP(){
+  const on = $('#pyT').checked && $('#tlang').value === 'zh' && window.pinyinPro;
+  document.querySelectorAll('.line').forEach(el => {
+    const t = el.querySelector('.t').textContent.replace(/^≈\s*/, ''), p = el.querySelector('.tp');
+    p.textContent = on && /[\u4e00-\u9fff]/.test(t) ? window.pinyinPro.pinyin(t, {toneType: 'symbol'}) : '';
+  });
+}
+$('#pyT').checked = store.get('pyT') === true;
+$('#pyT').onchange = () => { store.set('pyT', $('#pyT').checked); fillTP(); updateBig(); };
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
